@@ -1,5 +1,6 @@
 #include "visual_board.hpp"
 #include "raylib.h"
+#include <cstring>
 
 namespace renderer {
     static void
