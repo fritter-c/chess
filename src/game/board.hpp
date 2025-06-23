@@ -1,20 +1,23 @@
 #pragma once
 #include "piece.hpp"
+#include <cstring>
+#include "move.hpp"
 
-namespace game {
-    constexpr ChessPiece None{ChessPieceType::NONE, ChessPieceColor::PIECE_WHITE};
-    constexpr ChessPiece BPawn{ChessPieceType::PAWN, ChessPieceColor::PIECE_BLACK};
-    constexpr ChessPiece WPawn{ChessPieceType::PAWN, ChessPieceColor::PIECE_WHITE};
-    constexpr ChessPiece BRook{ChessPieceType::ROOK, ChessPieceColor::PIECE_BLACK};
-    constexpr ChessPiece BKnight{ChessPieceType::KNIGHT, ChessPieceColor::PIECE_BLACK};
-    constexpr ChessPiece BBishop{ChessPieceType::BISHOP, ChessPieceColor::PIECE_BLACK};
-    constexpr ChessPiece BQueen{ChessPieceType::QUEEN, ChessPieceColor::PIECE_BLACK};
-    constexpr ChessPiece BKing{ChessPieceType::KING, ChessPieceColor::PIECE_BLACK};
-    constexpr ChessPiece WRook{ChessPieceType::ROOK, ChessPieceColor::PIECE_WHITE};
-    constexpr ChessPiece WKnight{ChessPieceType::KNIGHT, ChessPieceColor::PIECE_WHITE};
-    constexpr ChessPiece WBishop{ChessPieceType::BISHOP, ChessPieceColor::PIECE_WHITE};
-    constexpr ChessPiece WQueen{ChessPieceType::QUEEN, ChessPieceColor::PIECE_WHITE};
-    constexpr ChessPiece WKing{ChessPieceType::KING, ChessPieceColor::PIECE_WHITE};
+namespace game
+{
+    constexpr ChessPiece None{ChessPieceType::NONE, ChessPieceColor::PIECE_WHITE, 0};
+    constexpr ChessPiece BPawn{ChessPieceType::PAWN, ChessPieceColor::PIECE_BLACK, 0};
+    constexpr ChessPiece WPawn{ChessPieceType::PAWN, ChessPieceColor::PIECE_WHITE, 0};
+    constexpr ChessPiece BRook{ChessPieceType::ROOK, ChessPieceColor::PIECE_BLACK, 0};
+    constexpr ChessPiece BKnight{ChessPieceType::KNIGHT, ChessPieceColor::PIECE_BLACK, 0};
+    constexpr ChessPiece BBishop{ChessPieceType::BISHOP, ChessPieceColor::PIECE_BLACK, 0};
+    constexpr ChessPiece BQueen{ChessPieceType::QUEEN, ChessPieceColor::PIECE_BLACK, 0};
+    constexpr ChessPiece BKing{ChessPieceType::KING, ChessPieceColor::PIECE_BLACK, 0};
+    constexpr ChessPiece WRook{ChessPieceType::ROOK, ChessPieceColor::PIECE_WHITE, 0};
+    constexpr ChessPiece WKnight{ChessPieceType::KNIGHT, ChessPieceColor::PIECE_WHITE, 0};
+    constexpr ChessPiece WBishop{ChessPieceType::BISHOP, ChessPieceColor::PIECE_WHITE, 0};
+    constexpr ChessPiece WQueen{ChessPieceType::QUEEN, ChessPieceColor::PIECE_WHITE, 0};
+    constexpr ChessPiece WKing{ChessPieceType::KING, ChessPieceColor::PIECE_WHITE, 0};
 
     static constexpr ChessPiece StartingPosition[8][8] = {
         {BRook, BKnight, BBishop, BQueen, BKing, BBishop, BKnight, BRook},
@@ -35,37 +38,69 @@ namespace game {
         {"a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4"},
         {"a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3"},
         {"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2"},
-        {"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1"}
-    };
+        {"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1"}};
 
-    struct Board {
+    struct Board
+    {
         ChessPiece pieces[64];
     };
 
     void
     board_populate(Board *board);
 
+    inline void
+    reset_board(Board *board)
+    {
+        std::memset(board, 0, sizeof(Board));
+        board_populate(board);
+    }
+
     inline int32_t
-    board_get_index(const int32_t row, const int32_t col) {
+    board_get_index(const int32_t row, const int32_t col)
+    {
         return row * 8 + col;
     }
 
     inline int32_t
-    board_get_row(const int32_t index) {
+    board_get_row(const int32_t index)
+    {
         return index / 8;
     }
 
     inline int32_t
-    board_get_col(const int32_t index) {
+    board_get_col(const int32_t index)
+    {
         return index % 8;
     }
 
     inline bool
-    board_pawn_first_move(const ChessPiece piece, const int32_t row) {
+    board_pawn_first_move(const ChessPiece piece, const int32_t row)
+    {
         return (piece.color == ChessPieceColor::PIECE_WHITE && row == 6) ||
                (piece.color == ChessPieceColor::PIECE_BLACK && row == 1);
     }
 
     bool
     board_move(Board *board, int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col);
+
+    bool
+    board_move(Board *board, int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col, AlgebraicMove &out_alg);
+
+    inline bool
+    board_move(Board* board, const SimpleMove &move)
+    {
+        return board_move(board, move.from_row, move.from_col, move.to_row, move.to_col);
+    }
+
+    inline bool
+    board_move(Board* board, const AlgebraicMove &move)
+    {
+        return board_move(board, move.from_row, move.from_col, move.to_row, move.to_col);
+    }
+
+    void
+    board_release(Board *board);
+
+    AlgebraicMove
+    board_get_algebraic_move(const Board *board, const SimpleMove &move);
 }
