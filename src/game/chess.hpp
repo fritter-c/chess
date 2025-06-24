@@ -20,4 +20,7 @@ namespace game
         uint32_t moves_capacity;      // The capacity of the moves array
         uint32_t moves_index;         // The current index in the moves array
     };
+
+    void
+    chess_game_initialize(ChessGame *game);
 }

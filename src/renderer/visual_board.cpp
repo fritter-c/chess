@@ -112,7 +112,6 @@ namespace renderer {
                 board->last_moved_piece_dest_col = game::board_get_col(board_index);
                 board->last_moved_piece_org_row = board->dragging_piece_row;
                 board->last_moved_piece_org_col = board->dragging_piece_col;
-                PlaySound(board->capture_sound);
             }
             board->dragging_piece = game::ChessPiece{NONE, game::ChessPieceColor::PIECE_WHITE};
         }

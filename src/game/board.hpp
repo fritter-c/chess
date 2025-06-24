@@ -2,7 +2,7 @@
 #include "piece.hpp"
 #include <cstring>
 #include "move.hpp"
-
+#include <cstdint>
 namespace game
 {
     constexpr ChessPiece None{ChessPieceType::NONE, ChessPieceColor::PIECE_WHITE, 0};
@@ -40,6 +40,31 @@ namespace game
         {"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2"},
         {"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1"}};
 
+    enum class File : uint8_t
+    {
+        FILE_A,
+        FILE_B,
+        FILE_C,
+        FILE_D,
+        FILE_E,
+        FILE_F,
+        FILE_G,
+        FILE_H,
+        FILE_NB
+    };
+
+    enum class Rank : uint8_t
+    {
+        RANK_1,
+        RANK_2,
+        RANK_3,
+        RANK_4,
+        RANK_5,
+        RANK_6,
+        RANK_7,
+        RANK_8,
+        RANK_NB
+    };
     struct Board
     {
         ChessPiece pieces[64];
@@ -87,19 +112,16 @@ namespace game
     board_move(Board *board, int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col, AlgebraicMove &out_alg);
 
     inline bool
-    board_move(Board* board, const SimpleMove &move)
+    board_move(Board *board, const SimpleMove &move)
     {
         return board_move(board, move.from_row, move.from_col, move.to_row, move.to_col);
     }
 
     inline bool
-    board_move(Board* board, const AlgebraicMove &move)
+    board_move(Board *board, const AlgebraicMove &move)
     {
         return board_move(board, move.from_row, move.from_col, move.to_row, move.to_col);
     }
-
-    void
-    board_release(Board *board);
 
     AlgebraicMove
     board_get_algebraic_move(const Board *board, const SimpleMove &move);
