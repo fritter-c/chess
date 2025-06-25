@@ -7,8 +7,8 @@ int main()
 {
     // Create a resizable window
     InitWindow(1280, 960, "Chess");
+    SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     InitAudioDevice();
-    SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
     SetWindowMinSize(1280, 960);
     renderer::MainPanel panel{};
 

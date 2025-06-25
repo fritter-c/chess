@@ -3,6 +3,7 @@
 #include "../game/move.hpp"
 #include <cstring>
 #include "main_panel.hpp"
+#include "../game/analyzer.hpp"
 
 namespace renderer {
     static void
@@ -61,6 +62,27 @@ namespace renderer {
     }
 
     static void
+    visual_board_draw_available_squares(const VisualBoard *board)
+    {
+        if (board->dragging_piece.type == game::ChessPieceType::NONE) {
+            return;
+        }
+
+        const int32_t row = board->dragging_piece_row;
+        const int32_t col = board->dragging_piece_col;
+        const game::BitBoard available_moves = board->dragging_piece_available_moves;
+
+        for (int32_t r = 0; r < 8; r++) {
+            for (int32_t c = 0; c < 8; c++) {
+                if (available_moves.get(r, c)) {
+                    Rectangle highlight_rect{};
+                    visual_board_get_rect_for_cell(board, r, c, &highlight_rect);
+                    DrawRectangleLinesEx(highlight_rect, 2.0f, YELLOW);
+                }
+            }
+        }           
+    }
+    static void
     visual_board_draw_pieces(const VisualBoard *board) {
         for (int32_t row = 0; row < 8; row++) {
             for (int32_t col = 0; col < 8; col++) {
@@ -100,6 +122,8 @@ namespace renderer {
                     board->dragging_piece = piece;
                     board->dragging_piece_row = static_cast<uint8_t>(game::board_get_row(board_index));
                     board->dragging_piece_col = static_cast<uint8_t>(game::board_get_col(board_index));
+                    board->dragging_piece_available_moves = game::analyzer_get_available_moves_for_piece(
+                        &board->board, board->dragging_piece_row, board->dragging_piece_col);
                 }
             }
         } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && board->dragging_piece.type !=
@@ -170,6 +194,7 @@ namespace renderer {
                                            board->last_moved_piece_org_col, &highlight_rect);
             DrawRectangleRec(highlight_rect, ColorAlpha(MAGENTA, .5f));
         }
+        visual_board_draw_available_squares(board);
         visual_board_draw_pieces(board);
         visual_board_draw_dragging_piece(board);
     }

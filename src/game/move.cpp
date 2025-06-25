@@ -27,12 +27,12 @@ namespace game
         {
             if (move.piece_type == PAWN)
             {
-                buffer_push(buffer, static_cast<char>('a' - move.from_col));
+                buffer_push(buffer, 'e');
             }
             buffer_push(buffer, 'x');
         }
 
-        buffer_push(buffer, static_cast<char>('a' - move.to_col));
+        buffer_push(buffer, static_cast<char>('a' + move.to_col));
         buffer_push(buffer, static_cast<char>('0' + move.to_row));
 
         if (move.is_checkmate)

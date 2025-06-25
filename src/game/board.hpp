@@ -65,6 +65,32 @@ namespace game
         RANK_8,
         RANK_NB
     };
+
+    struct BitBoard
+    {
+        uint64_t bits;
+
+        void set(int32_t row, int32_t col)
+        {
+            bits |= (1ULL << (row * 8 + col));
+        }
+
+        void clear(int32_t row, int32_t col)
+        {
+            bits &= ~(1ULL << (row * 8 + col));
+        }
+
+        bool get(int32_t row, int32_t col) const
+        {
+            return (bits & (1ULL << (row * 8 + col))) != 0;
+        }
+
+        void reset()
+        {
+            bits = 0;
+        }
+    };
+    
     struct Board
     {
         ChessPiece pieces[64];

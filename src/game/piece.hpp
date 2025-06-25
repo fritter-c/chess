@@ -24,7 +24,15 @@ namespace game
         ChessPieceType type : 3;
         ChessPieceColor color : 1;
         uint8_t moved : 1;
+        uint8_t first_move_was_last_turn : 1; // Used for pawns to track if the first move was the last move
+        uint8_t reserved : 2;                 // Reserved for future use, currently unused
     };
+
+    inline bool
+    chess_piece_equal(ChessPiece left, ChessPiece right)
+    {
+        return left.type == right.type && left.color == right.color;
+    }
 
     constexpr static char AlgebraicPieceType[] = {'K', 'Q', 'B', 'N', 'R'};
 
@@ -33,7 +41,7 @@ namespace game
     {
         if (type == ChessPieceType::PAWN)
         {
-            return '\0'; 
+            return '\0';
         }
         return AlgebraicPieceType[static_cast<int>(type) - 1];
     }
