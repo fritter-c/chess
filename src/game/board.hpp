@@ -135,6 +135,9 @@ namespace game
     board_move(Board *board, int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col);
 
     bool
+    board_move(Board *board, int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col, int32_t last_moved_index);
+
+    bool
     board_move(Board *board, int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col, AlgebraicMove &out_alg);
 
     inline bool

@@ -3,7 +3,7 @@
 #include <immintrin.h>
 #include <bit>
 #include <cstdio>
-
+#include "analyzer.hpp"
 namespace game
 {
     void
@@ -43,9 +43,9 @@ namespace game
     static void
     board_reset_first_move(Board *board)
     {
-        for(int32_t i = 0; i < 64; ++i)
+        for (int32_t i = 0; i < 64; ++i)
         {
-            board->pieces[i].first_move_was_last_turn = 0; 
+            board->pieces[i].first_move_was_last_turn = 0;
         }
     }
 
@@ -55,9 +55,27 @@ namespace game
     {
         if (board_can_move_basic(board, from_row, from_col, to_row, to_col))
         {
-
             ChessPiece &from_piece = board->pieces[board_get_index(from_row, from_col)];
             board_reset_first_move(board);
+            if (from_piece.moved == 0)
+            {
+                from_piece.first_move_was_last_turn = 1;
+            }
+            from_piece.moved = 1;
+            board->pieces[board_get_index(to_row, to_col)] = from_piece;
+            board->pieces[board_get_index(from_row, from_col)] = None;
+            return true;
+        }
+        return false;
+    }
+
+    bool
+    board_move(Board *board, int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col, int32_t last_moved_index)
+    {
+        if (board_can_move_basic(board, from_row, from_col, to_row, to_col))
+        {
+            ChessPiece &from_piece = board->pieces[board_get_index(from_row, from_col)];
+            board->pieces[last_moved_index].first_move_was_last_turn = 0;
             if (from_piece.moved == 0)
             {
                 from_piece.first_move_was_last_turn = 1;
@@ -91,6 +109,7 @@ namespace game
     board_get_algebraic_move(const Board *board, const SimpleMove &move)
     {
         AlgebraicMove alg{};
+        Board board_copy = *board;
         const int32_t fromIdx = board_get_index(move.from_row, move.from_col);
         const int32_t toIdx = board_get_index(move.to_row, move.to_col);
 
@@ -108,9 +127,11 @@ namespace game
 
         alg.is_capture = (target.type != ChessPieceType::NONE);
 
+        board_move(&board_copy, move);
+
         // 5) stub out checks/checkmates for now
-        alg.is_check = false;
-        alg.is_checkmate = false;
+        alg.is_checkmate = analyzer_is_color_in_checkmate(&board_copy, target.color);
+        alg.is_check = !alg.is_checkmate && analyzer_is_color_in_check(&board_copy, target.color);
 
         return alg;
     }

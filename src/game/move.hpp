@@ -19,12 +19,9 @@ namespace game
         uint8_t to_col : 3;
         uint8_t from_row : 3;
         uint8_t to_row : 3;
-        uint8_t dis_row : 3;
-        uint8_t dis_col : 3;
         uint8_t is_capture : 1;
         uint8_t is_check : 1;
         uint8_t is_checkmate : 1;
-        uint8_t has_disambiguation : 1;
     };
 
     void

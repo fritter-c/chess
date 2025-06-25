@@ -14,7 +14,10 @@ namespace game
     bool
     analyzer_is_cell_under_attack_by_color(const Board *board, const int32_t row, const int32_t col,
                                            ChessPieceColor color);
-
+                                           
     bool
     analyzer_is_color_in_check(const Board *board, ChessPieceColor color);
+
+    bool
+    analyzer_is_color_in_checkmate(const Board *board, ChessPieceColor color);
 } // namespace game

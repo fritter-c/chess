@@ -384,4 +384,27 @@ namespace game
                                                       color == ChessPieceColor::PIECE_WHITE ? ChessPieceColor::PIECE_BLACK : ChessPieceColor::PIECE_WHITE);
     }
 
+    bool
+    analyzer_is_color_in_checkmate(const Board *board, ChessPieceColor color)
+    {
+        if (analyzer_is_color_in_check(board, color)){
+            for(uint8_t r = 0; r < 8; ++r)
+            {
+                for(uint8_t c = 0; c < 8; ++c)
+                {
+                    if (board->pieces[board_get_index(r, c)].color == color)
+                    {
+                        BitBoard moves = analyzer_get_available_moves_for_piece(board, r, c);
+                        if (moves.bits != 0)
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
 } // namespace game
