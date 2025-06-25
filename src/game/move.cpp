@@ -10,11 +10,11 @@ namespace game
         using enum ChessPieceType;
 
         size_t buffer_index{0};
-        auto buffer_push = [&buffer_index, buffer_size](char *buffer, char c)
+        auto buffer_push = [&buffer_index, buffer_size](char *buf, char c)
         {
             if (buffer_index < buffer_size - 1)
             {
-                buffer[buffer_index++] = c;
+                buf[buffer_index++] = c;
             }
         };
 
@@ -27,13 +27,13 @@ namespace game
         {
             if (move.piece_type == PAWN)
             {
-                buffer_push(buffer, char('a' - move.from_col));
+                buffer_push(buffer, static_cast<char>('a' - move.from_col));
             }
             buffer_push(buffer, 'x');
         }
 
-        buffer_push(buffer, char('a' - move.to_col));
-        buffer_push(buffer, char('0' + move.to_row));
+        buffer_push(buffer, static_cast<char>('a' - move.to_col));
+        buffer_push(buffer, static_cast<char>('0' + move.to_row));
 
         if (move.is_checkmate)
             buffer_push(buffer, '#');
@@ -46,20 +46,21 @@ namespace game
     static ChessPieceType
     letter_to_piece_type(char c)
     {
+        using enum ChessPieceType;
         switch (c)
         {
         case 'N':
-            return ChessPieceType::KNIGHT;
+            return KNIGHT;
         case 'B':
-            return ChessPieceType::BISHOP;
+            return BISHOP;
         case 'R':
-            return ChessPieceType::ROOK;
+            return ROOK;
         case 'Q':
-            return ChessPieceType::QUEEN;
+            return QUEEN;
         case 'K':
-            return ChessPieceType::KING;
+            return KING;
         default:
-            return ChessPieceType::PAWN;
+            return PAWN;
         }
     }
 
@@ -79,8 +80,7 @@ namespace game
         move.is_checkmate = false;
 
         // 1) strip trailing '+' or '#'
-        size_t len = std::strlen(str);
-        if (len > 0 && str[len - 1] == '#')
+        if (size_t len = std::strlen(str); len > 0 && str[len - 1] == '#')
         {
             move.is_checkmate = true;
             str[--len] = '\0';
@@ -91,7 +91,7 @@ namespace game
             str[--len] = '\0';
         }
 
-        char *p = str;
+        const char *p = str;
 
         // 2) piece letter? (everything A–Z except pawn is implicit)
         if (*p >= 'A' && *p <= 'Z')
@@ -106,7 +106,7 @@ namespace game
         if (move.piece_type == PAWN && *(p + 1) == 'x')
         {
             // record the pawn's source file
-            move.from_col = char(*(p) - 'a');
+            move.from_col = static_cast<char>(*p - 'a');
             move.is_capture = true;
             p += 2; // skip "<file>x"
         }
@@ -117,9 +117,9 @@ namespace game
         }
 
         // 4) now p points at destination: file then rank
-        move.to_col = char(*p - 'a');
+        move.to_col = static_cast<char>(*p - 'a');
         ++p;
-        move.to_row = uint8_t(*p - '0'); // '1'→1, ..., '8'→8
+        move.to_row = static_cast<uint8_t>(*p - '0'); // '1'→1, ..., '8'→8
 
         return move;
     }

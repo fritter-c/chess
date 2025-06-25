@@ -1,28 +1,30 @@
 #include <cstdlib>
 #include "raylib.h"
 #include "renderer/visual_board.hpp"
+#include "renderer/main_panel.hpp"
 #include <filesystem>
 int main()
 {
     // Create a resizable window
-    InitWindow(800, 800, "Chess");
+    InitWindow(1280, 960, "Chess");
     InitAudioDevice();
-    SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
-    renderer::VisualBoard board{};
-    renderer::visual_board_initialize(&board);
+    SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
+    SetWindowMinSize(1280, 960);
+    renderer::MainPanel panel{};
+
     const auto res = std::filesystem::current_path().parent_path().parent_path() / "res";
+    renderer::main_panel_initialize(&panel, res);
     const Image logo = LoadImage((res / "logo.png").string().c_str());
     SetWindowIcon(logo);
-    renderer::visual_board_load_resources(&board, res);
 
     // Main loop
     while (!WindowShouldClose())
     {
-        renderer::visual_board_resize(&board, GetScreenWidth(), GetScreenHeight());
+        renderer::main_panel_resize(&panel, GetScreenWidth(), GetScreenHeight());
         BeginDrawing();
         ClearBackground(RAYWHITE);
         // Draw the chessboard
-        renderer::visual_board_draw(&board);
+        renderer::main_panel_draw(&panel);
         DrawFPS(0, 0);
         EndDrawing();
     }

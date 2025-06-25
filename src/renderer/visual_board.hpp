@@ -3,9 +3,12 @@
 #include "raylib.h"
 #include "../game/board.hpp"
 #include <filesystem>
+#include "../utils/utils.hpp"
 
 namespace renderer {
+    struct MainPanel;
     struct VisualBoard {
+        MainPanel *panel;
         int32_t offset_x;
         int32_t offset_y;
         int32_t window_size;
@@ -18,6 +21,7 @@ namespace renderer {
         Sound capture_sound;
         game::Board board;
         game::ChessPiece dragging_piece;
+        utils::list<game::AlgebraicMove> moves;
         uint8_t dragging_piece_row;
         uint8_t dragging_piece_col;
         int32_t last_moved_piece_dest_row;
@@ -28,7 +32,7 @@ namespace renderer {
     };
 
     void
-    visual_board_initialize(VisualBoard* board);
+    visual_board_initialize(VisualBoard* board, MainPanel *panel);
 
     void
     visual_board_resize(VisualBoard *board, int32_t w, int32_t h);
@@ -37,5 +41,8 @@ namespace renderer {
     visual_board_draw(VisualBoard *board);
 
     void
-    visual_board_load_resources(VisualBoard *board, const std::filesystem::path &path );
+    visual_board_load_resources(VisualBoard *board, const std::filesystem::path &path);
+
+    void
+    visual_board_reset_pieces(VisualBoard *board);
 }

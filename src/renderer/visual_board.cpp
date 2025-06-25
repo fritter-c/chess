@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include "../game/move.hpp"
 #include <cstring>
+#include "main_panel.hpp"
 
 namespace renderer {
     static void
@@ -37,9 +38,10 @@ namespace renderer {
     }
 
     void
-    visual_board_initialize(VisualBoard *board) {
+    visual_board_initialize(VisualBoard *board, MainPanel * panel) {
         std::memset(board, 0, sizeof(VisualBoard));
         game::board_populate(&board->board);
+        board->panel = panel;
     }
 
     void
@@ -103,15 +105,17 @@ namespace renderer {
         } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && board->dragging_piece.type !=
                    NONE) {
             const Vector2 mouse_pos = GetMousePosition();
+            game::AlgebraicMove move{};
             if (const int32_t board_index = visual_board_get_board_index_for_mouse_pos(board, mouse_pos);
                 board_index != -1 && game::board_move(&board->board, board->dragging_piece_row,
                                                       board->dragging_piece_col, game::board_get_row(board_index),
-                                                      game::board_get_col(board_index))) {
+                                                      game::board_get_col(board_index), move)) {
                 board->has_moves = true;
                 board->last_moved_piece_dest_row = game::board_get_row(board_index);
                 board->last_moved_piece_dest_col = game::board_get_col(board_index);
                 board->last_moved_piece_org_row = board->dragging_piece_row;
                 board->last_moved_piece_org_col = board->dragging_piece_col;
+                board->moves.push_back(move);
             }
             board->dragging_piece = game::ChessPiece{NONE, game::ChessPieceColor::PIECE_WHITE};
         }
@@ -201,5 +205,19 @@ namespace renderer {
         }
 
         board->capture_sound = LoadSound((path / "capture.mp3").string().c_str());
+    }
+
+    void
+    visual_board_reset_pieces(VisualBoard *board) {
+        game::board_populate(&board->board);
+        board->dragging_piece = {};
+        board->dragging_piece_row = 0;
+        board->dragging_piece_col = 0;
+        board->last_moved_piece_dest_row = 0;
+        board->last_moved_piece_dest_col = 0;
+        board->last_moved_piece_org_row = 0;
+        board->last_moved_piece_org_col = 0;
+        board->has_moves = false;
+        board->moves.clear();
     }
 }
