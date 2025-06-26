@@ -6,7 +6,7 @@ int main()
 {
     // Create a resizable window
     InitWindow(1280, 960, "Chess");
-    SetWindowState(FLAG_WINDOW_RESIZABLE );
+    SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     InitAudioDevice();
     SetWindowMinSize(1280, 960);
     renderer::MainPanel panel{};
@@ -21,7 +21,7 @@ int main()
     {
         renderer::main_panel_resize(&panel, GetScreenWidth(), GetScreenHeight());
         BeginDrawing();
-        ClearBackground(RAYWHITE);
+        ClearBackground(GRAY);
         // Draw the chessboard
         renderer::main_panel_draw(&panel);
         DrawFPS(0, 0);

@@ -4,6 +4,7 @@
 #include "../game/board.hpp"
 #include <filesystem>
 #include "../utils/utils.hpp"
+#include "../game/piece.hpp"
 
 namespace renderer {
     struct MainPanel;
@@ -14,13 +15,14 @@ namespace renderer {
         int32_t window_size;
         int32_t size;
         int32_t cell_size;
+        bool flipped;
         Texture2D piece_textures;
         Rectangle piece_original_rects[12];
         Font font_big;
         Font font_small;
         Sound capture_sound;
         game::Board board;
-        game::ChessPiece dragging_piece;
+        game::Piece dragging_piece;
         game::AvailableSquares dragging_piece_available_moves;
         utils::list<game::AlgebraicMove> moves;
         uint8_t dragging_piece_row;

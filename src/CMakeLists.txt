@@ -3,7 +3,6 @@ add_executable(chess main.cpp game/board.cpp
         game/move.cpp
         game/chess.cpp
         game/analyzer.cpp
-        game/ai.cpp
         renderer/main_panel.cpp
         raygui.c)
 

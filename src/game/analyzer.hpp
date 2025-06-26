@@ -23,9 +23,6 @@ namespace game {
     AlgebraicMove
     analyzer_get_algebraic_move(const Board *board, const SimpleMove &move);
 
-    AlgebraicMove
-    analyzer_algebraic_move_from_str(const Board *board, const char *str, ChessPieceColor turn);
-
     Square
     analyzer_where(const Board *board, ChessPieceType type, ChessPieceColor color, int32_t disambiguation_col = -1,
                    int32_t disambiguation_row = -1);

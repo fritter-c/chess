@@ -2,9 +2,18 @@
 #include "board.hpp"
 #include "player.hpp"
 #include "move.hpp"
-
+#include "../utils/utils.hpp"
 namespace game
 {
+    enum ChessMode
+    {
+        FREE_MODE,
+        EVALUATION_MODE,
+        GAME_MODE
+    };
+
+    utils::short_string
+    game_mode_to_string(ChessMode mode);
     struct ChessGame
     {
         Board board;                  // The chess board
