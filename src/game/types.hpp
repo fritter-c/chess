@@ -1,5 +1,6 @@
 #pragma once
 #include "piece.hpp"
+#include <cstdlib>
 #include <cstdint>
 namespace game{
     static constexpr Piece StartingPosition[8][8] = {
@@ -35,6 +36,31 @@ namespace game{
         A8, B8, C8, D8, E8, F8, G8, H8,
         SQUARE_OUT
     };
+
+    constexpr int32_t 
+    square_file(SquareIndex sq) noexcept {
+        return static_cast<int32_t>(sq) & 7;
+    }
+
+    constexpr int32_t 
+        square_rank(SquareIndex sq) noexcept {
+        return static_cast<int32_t>(sq) >> 3;
+    }
+
+    constexpr bool 
+    squares_same_diagonal(SquareIndex a, SquareIndex b) noexcept {
+        return std::abs(square_file(a) - square_file(b)) == std::abs(square_rank(a) - square_rank(b));
+    }
+
+    constexpr bool 
+    squares_same_main_diagonal(SquareIndex a, SquareIndex b) noexcept {
+        return square_file(a) - square_rank(a) == square_file(b) - square_rank(b);
+    }
+
+    constexpr bool 
+    squares_same_anti_diagonal(SquareIndex a, SquareIndex b) noexcept {
+        return square_file(a) + square_rank(a) == square_file(b) + square_rank(b);
+    }
 
     enum class File : int8_t {
         FILE_A,
