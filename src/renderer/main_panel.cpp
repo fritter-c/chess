@@ -20,15 +20,15 @@ namespace renderer
     }
 
     static void
-    main_panel_draw_moves(MainPanel *panel)
+    main_panel_draw_moves(const MainPanel *panel)
     {
-        for (auto i = 0; i < panel->visual_board.moves.size; ++i)
+        for (uint32_t i = 0; i < panel->visual_board.moves.size; ++i)
         {
             const game::AlgebraicMove &move = panel->visual_board.moves.items[i];
-            char move_str[32];
-            game::algebraic_move_to_string(move, move_str, sizeof(move_str));
-            const int32_t y_offset = 40 + i * 20;
-            DrawTextEx(panel->visual_board.font_big, move_str, {static_cast<float>(panel->control_panel_x) + 10.0f, static_cast<float>(y_offset)}, 20.0f, 0.0f, BLACK);
+            utils::text_buffer move_str{};
+            game::algebraic_move_to_string(move, move_str.text, 32);
+            const int32_t y_offset = 40 + static_cast<int32_t>(i) * 20;
+            DrawTextEx(panel->visual_board.font_big, move_str.text, {static_cast<float>(panel->control_panel_x) + 10.0f, static_cast<float>(y_offset)}, 20.0f, 0.0f, BLACK);
         }
     }
 

@@ -1,13 +1,12 @@
 #include <cstdlib>
 #include "raylib.h"
-#include "renderer/visual_board.hpp"
 #include "renderer/main_panel.hpp"
 #include <filesystem>
 int main()
 {
     // Create a resizable window
     InitWindow(1280, 960, "Chess");
-    SetWindowState(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
+    SetWindowState(FLAG_WINDOW_RESIZABLE );
     InitAudioDevice();
     SetWindowMinSize(1280, 960);
     renderer::MainPanel panel{};

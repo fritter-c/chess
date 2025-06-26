@@ -9,7 +9,7 @@ namespace renderer {
     static void
     visual_board_get_rect_for_cell(const VisualBoard *board, const int32_t row, const int32_t col, Rectangle *rect) {
         rect->x = static_cast<float>(board->offset_x + col * board->cell_size);
-        rect->y = static_cast<float>(board->offset_y + row * board->cell_size);
+        rect->y = static_cast<float>(board->offset_y + (7 - row) * board->cell_size);
         rect->width = static_cast<float>(board->cell_size);
         rect->height = static_cast<float>(board->cell_size);
     }
@@ -29,7 +29,7 @@ namespace renderer {
             return -1; // Out of bounds
         }
 
-        const int32_t row = (static_cast<int32_t>(mouse_pos.y) - board->offset_y) / board->cell_size;
+        const int32_t row = 7 - ((static_cast<int32_t>(mouse_pos.y) - board->offset_y) / board->cell_size);
         const int32_t col = (static_cast<int32_t>(mouse_pos.x) - board->offset_x) / board->cell_size;
 
         if (row < 0 || row >= 8 || col < 0 || col >= 8) {
@@ -39,7 +39,7 @@ namespace renderer {
     }
 
     void
-    visual_board_initialize(VisualBoard *board, MainPanel * panel) {
+    visual_board_initialize(VisualBoard *board, MainPanel *panel) {
         std::memset(board, 0, sizeof(VisualBoard));
         game::board_populate(&board->board);
         board->panel = panel;
@@ -62,15 +62,12 @@ namespace renderer {
     }
 
     static void
-    visual_board_draw_available_squares(const VisualBoard *board)
-    {
+    visual_board_draw_available_squares(const VisualBoard *board) {
         if (board->dragging_piece.type == game::ChessPieceType::NONE) {
             return;
         }
 
-        const int32_t row = board->dragging_piece_row;
-        const int32_t col = board->dragging_piece_col;
-        const game::BitBoard available_moves = board->dragging_piece_available_moves;
+        const game::AvailableSquares available_moves = board->dragging_piece_available_moves;
 
         for (int32_t r = 0; r < 8; r++) {
             for (int32_t c = 0; c < 8; c++) {
@@ -80,12 +77,13 @@ namespace renderer {
                     DrawRectangleLinesEx(highlight_rect, 2.0f, YELLOW);
                 }
             }
-        }           
+        }
     }
+
     static void
     visual_board_draw_pieces(const VisualBoard *board) {
-        for (int32_t row = 0; row < 8; row++) {
-            for (int32_t col = 0; col < 8; col++) {
+        for (int32_t row = 7; row >= 0; --row) {
+            for (int32_t col = 7; col >= 0; --col) {
                 const int32_t index = game::board_get_index(row, col);
                 const game::ChessPiece piece = board->board.pieces[index];
                 Rectangle piece_rect{};

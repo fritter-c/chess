@@ -21,7 +21,7 @@ namespace renderer {
         Sound capture_sound;
         game::Board board;
         game::ChessPiece dragging_piece;
-        game::BitBoard dragging_piece_available_moves;
+        game::AvailableSquares dragging_piece_available_moves;
         utils::list<game::AlgebraicMove> moves;
         uint8_t dragging_piece_row;
         uint8_t dragging_piece_col;

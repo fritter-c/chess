@@ -1,7 +1,6 @@
 #pragma once
 #include <cstdint>
 #include <cstdlib>
-#include <malloc.h>
 
 namespace utils {
     template<typename T>
@@ -20,9 +19,9 @@ namespace utils {
         void reserve(const uint32_t new_capacity) {
             if (new_capacity > capacity) {
                 if (items) {
-                    items = static_cast<T *>(realloc(items, sizeof(T) * new_capacity));
+                    items = static_cast<T *>(std::realloc(items, sizeof(T) * new_capacity));
                 } else {
-                    items = static_cast<T *>(malloc(sizeof(T) * new_capacity));
+                    items = static_cast<T *>(std::malloc(sizeof(T) * new_capacity));
                 }
                 capacity = new_capacity;
                 if (!items) {
@@ -46,6 +45,31 @@ namespace utils {
 
         void clear() {
             size = 0;
+        }
+    };
+
+    template<int Capacity = 32>
+    struct text_buffer {
+        char text[Capacity];
+
+        char *operator()() {
+            return text;
+        }
+
+        void push_back(const char ch) {
+            for (uint32_t i = 0; i < Capacity - 2; ++i) {
+                if (text[i] == '\0') {
+                    text[i] = ch;
+                    text[i + 1] = '\0';
+                    break;
+                }
+            }
+        }
+
+        int32_t size() {
+            int32_t size = 0;
+            for (; size < Capacity && text[size] != '\0'; ++size){}
+            return size;
         }
     };
 }
