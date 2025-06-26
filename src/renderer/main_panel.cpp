@@ -1,5 +1,5 @@
 #include "main_panel.hpp"
-#include "../raygui.h"
+#include "raygui.h"
 
 namespace renderer
 {
