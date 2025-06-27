@@ -8,7 +8,7 @@ namespace game {
 
     inline AvailableSquares
     analyzer_get_available_moves_for_piece(const Board *board,const int32_t index) {
-        return analyzer_get_available_moves_for_piece(board, board_get_row(index), board_get_col(index));
+        return analyzer_get_available_moves_for_piece(board, Board::board_get_row(index), Board::board_get_col(index));
     }
     bool
     analyzer_is_cell_under_attack_by_color(const Board *board, int32_t row, int32_t col,
@@ -26,4 +26,7 @@ namespace game {
     Square
     analyzer_where(const Board *board, PieceType type, Color color, int32_t disambiguation_col = -1,
                    int32_t disambiguation_row = -1);
+    
+    int32_t 
+    analyzer_get_move_count(const Board* board, Color color);
 } // namespace game

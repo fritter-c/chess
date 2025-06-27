@@ -141,6 +141,7 @@ namespace game {
 
     using BitBoard = uint64_t;
 
+
     struct Square {
         uint8_t row: 4;
         uint8_t col: 4;

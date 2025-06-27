@@ -27,7 +27,7 @@ namespace game
             if (const int32_t c = col + dc;
                 r >= 0 && r < 8 && c >= 0 && c < 8)
             {
-                auto p = board->pieces[board_get_index(r, c)];
+                auto p = board->pieces[Board::Board::board_get_index(r, c)];
                 if (PIECE_TYPE(p) == PieceType::PAWN && PIECE_COLOR(p) == attacker)
                     return true;
             }
@@ -45,7 +45,7 @@ namespace game
             const int32_t c = col + dc;
             if (r >= 0 && r < 8 && c >= 0 && c < 8)
             {
-                auto p = board->pieces[board_get_index(r, c)];
+                auto p = board->pieces[Board::board_get_index(r, c)];
                 if (PIECE_TYPE(p) == PieceType::KNIGHT && PIECE_COLOR(p) == attacker)
                     return true;
             }
@@ -65,7 +65,7 @@ namespace game
             int32_t dist = 1;
             while (r >= 0 && r < 8 && c >= 0 && c < 8)
             {
-                const auto p = board->pieces[board_get_index(r, c)];
+                const auto p = board->pieces[Board::board_get_index(r, c)];
                 if (PIECE_TYPE(p) == NONE)
                 {
                     ++dist;
@@ -95,7 +95,7 @@ namespace game
             const int32_t c = col + dc;
             if (r >= 0 && r < 8 && c >= 0 && c < 8)
             {
-                auto p = board->pieces[board_get_index(r, c)];
+                auto p = board->pieces[Board::board_get_index(r, c)];
                 if (PIECE_TYPE(p) == PieceType::KING && PIECE_COLOR(p) == attacker)
                     return true;
             }
@@ -131,11 +131,11 @@ namespace game
         const auto friendly = chess_piece_other_color(enemy);
         if (to_row < 0 || to_row >= 8 || to_col < 0 || to_col >= 8)
             return false;
-        const auto target = board->pieces[board_get_index(to_row, to_col)];
+        const auto target = board->pieces[Board::board_get_index(to_row, to_col)];
         Board aux_board = *board;
         if (PIECE_TYPE(target) == PieceType::NONE)
         {
-            board_move_no_check(&aux_board, from_row, from_col, to_row, to_col);
+            aux_board.board_move_no_check(from_row, from_col, to_row, to_col);
             if (!analyzer_is_color_in_check(&aux_board, friendly))
             {
                 moves.set(to_row, to_col);
@@ -147,7 +147,7 @@ namespace game
         {
             return false;
         }
-        board_move_no_check(&aux_board, from_row, from_col, to_row, to_col);
+        aux_board.board_move_no_check(from_row, from_col, to_row, to_col);
         if (!analyzer_is_color_in_check(&aux_board, friendly))
         {
             moves.set(to_row, to_col);
@@ -164,12 +164,12 @@ namespace game
         const int32_t dir = (friendly == PIECE_WHITE ? 1 : -1);
         // one-step
         const int32_t r1 = row + dir;
-        if (const int32_t c1 = col; r1 >= 0 && r1 < 8 && PIECE_TYPE(board->pieces[board_get_index(r1, c1)]) == PieceType::NONE)
+        if (const int32_t c1 = col; r1 >= 0 && r1 < 8 && PIECE_TYPE(board->pieces[Board::board_get_index(r1, c1)]) == PieceType::NONE)
         {
             std::ignore = analyzer_add_move(board, row, col, r1, c1, moves, enemy);
             // two-step from home rank
             if (const int32_t r2 = row + 2 * dir;
-                board_pawn_first_move(piece, row) && PIECE_TYPE(board->pieces[board_get_index(r2, c1)]) ==
+                Board::board_pawn_first_move(piece, row) && PIECE_TYPE(board->pieces[Board::board_get_index(r2, c1)]) ==
                                                          PieceType::NONE)
             {
                 std::ignore = analyzer_add_move(board, row, col, r2, c1, moves, enemy);
@@ -184,7 +184,7 @@ namespace game
             {
                 continue;
             }
-            if (const auto p = board->pieces[board_get_index(r2, c2)];
+            if (const auto p = board->pieces[Board::board_get_index(r2, c2)];
                 PIECE_TYPE(p) != PieceType::NONE && PIECE_COLOR(p) == enemy)
             {
                 std::ignore = analyzer_add_move(board, row, col, r2, c2, moves, enemy);
@@ -198,12 +198,12 @@ namespace game
         if (PIECE_COLOR(piece) == PIECE_WHITE && row == 4)
         {
             // Check for en passant capture to the left
-            if (board_can_en_passant_this(board, row, col - 1, enemy))
+            if (board->board_can_en_passant_this(row, col - 1, enemy))
             {
                 std::ignore = analyzer_add_move(board, row, col, row + 1, col - 1, moves, enemy); // Capture to the left
             }
             // Check for en passant capture to the right
-            if (board_can_en_passant_this(board, row, col + 1, enemy))
+            if (board->board_can_en_passant_this(row, col + 1, enemy))
             {
                 std::ignore = analyzer_add_move(board, row, col, row + 1, col + 1, moves, enemy);
             }
@@ -211,12 +211,12 @@ namespace game
         else if (PIECE_COLOR(piece) == PIECE_BLACK && row == 3)
         {
             // Check for en passant capture to the left
-            if (board_can_en_passant_this(board, row, col - 1, enemy))
+            if (board->board_can_en_passant_this(row, col - 1, enemy))
             {
                 std::ignore = analyzer_add_move(board, row, col, row - 1, col - 1, moves, enemy); // Capture to the left
             }
             // Check for en passant capture to the right
-            if (board_can_en_passant_this(board, row, col + 1, enemy))
+            if (board->board_can_en_passant_this(row, col + 1, enemy))
             {
                 std::ignore = analyzer_add_move(board, row, col, row - 1, col + 1, moves, enemy);
             }
@@ -235,7 +235,7 @@ namespace game
             const int32_t c = col + dc;
             if (r < 0 || r >= 8 || c < 0 || c >= 8)
                 continue;
-            auto p = board->pieces[board_get_index(r, c)];
+            auto p = board->pieces[Board::board_get_index(r, c)];
             if ((PIECE_TYPE(p) == NONE || PIECE_COLOR(p) == enemy) && !analyzer_is_cell_under_attack_by_color(
                                                                           board, r, c, enemy))
                 moves.set(r, c);
@@ -243,11 +243,11 @@ namespace game
 
         // Kingside castling
         const uint8_t king_row = friendly ? 7 : 0;
-        if (PIECE_TYPE(board->pieces[board_get_index(king_row, 5)]) == NONE &&
-            PIECE_TYPE(board->pieces[board_get_index(king_row, 6)]) == NONE &&
-            PIECE_TYPE(board->pieces[board_get_index(king_row, 7)]) == ROOK &&
-            PIECE_COLOR(board->pieces[board_get_index(king_row, 7)]) == friendly &&
-            board_castle_rights_for(board, friendly, true) &&
+        if (PIECE_TYPE(board->pieces[Board::board_get_index(king_row, 5)]) == NONE &&
+            PIECE_TYPE(board->pieces[Board::board_get_index(king_row, 6)]) == NONE &&
+            PIECE_TYPE(board->pieces[Board::board_get_index(king_row, 7)]) == ROOK &&
+            PIECE_COLOR(board->pieces[Board::board_get_index(king_row, 7)]) == friendly &&
+            board->board_castle_rights_for(friendly, true) &&
             !analyzer_is_cell_under_attack_by_color(board, king_row, 5, chess_piece_other_color(friendly)) &&
             !analyzer_is_cell_under_attack_by_color(board, king_row, 6,
                                                     chess_piece_other_color(friendly)))
@@ -256,12 +256,12 @@ namespace game
         }
 
         // Queenside castling
-        if (PIECE_TYPE(board->pieces[board_get_index(king_row, 3)]) == NONE &&
-            PIECE_TYPE(board->pieces[board_get_index(king_row, 2)]) == NONE &&
-            PIECE_TYPE(board->pieces[board_get_index(king_row, 1)]) == NONE &&
-            PIECE_TYPE(board->pieces[board_get_index(king_row, 0)]) == ROOK &&
-            PIECE_COLOR(board->pieces[board_get_index(king_row, 0)]) == friendly &&
-            board_castle_rights_for(board, friendly, false) &&
+        if (PIECE_TYPE(board->pieces[Board::board_get_index(king_row, 3)]) == NONE &&
+            PIECE_TYPE(board->pieces[Board::board_get_index(king_row, 2)]) == NONE &&
+            PIECE_TYPE(board->pieces[Board::board_get_index(king_row, 1)]) == NONE &&
+            PIECE_TYPE(board->pieces[Board::board_get_index(king_row, 0)]) == ROOK &&
+            PIECE_COLOR(board->pieces[Board::board_get_index(king_row, 0)]) == friendly &&
+            board->board_castle_rights_for(friendly, false) &&
             !analyzer_is_cell_under_attack_by_color(board, king_row, 3, chess_piece_other_color(friendly)) &&
             !analyzer_is_cell_under_attack_by_color(board, king_row, 2, chess_piece_other_color(friendly)) &&
             !analyzer_is_cell_under_attack_by_color(board, king_row, 1,
@@ -287,7 +287,7 @@ namespace game
             int32_t c = col + dc;
             auto is_enemy_next = [&r, &c, &board, &enemy]()
             {
-                return PIECE_TYPE(board->pieces[board_get_index(r, c)]) != PieceType::NONE && PIECE_COLOR(board->pieces[board_get_index(r, c)]) == enemy;
+                return PIECE_TYPE(board->pieces[Board::board_get_index(r, c)]) != PieceType::NONE && PIECE_COLOR(board->pieces[Board::board_get_index(r, c)]) == enemy;
             };
             // add until a move is blocked encounters a piece, or is not valid
             while (analyzer_add_move(board, row, col, r, c, moves, enemy) && !is_enemy_next())
@@ -309,7 +309,7 @@ namespace game
             const int32_t c = col + dc;
             if (r < 0 || r >= 8 || c < 0 || c >= 8)
                 continue;
-            auto p = board->pieces[board_get_index(r, c)];
+            auto p = board->pieces[Board::board_get_index(r, c)];
             if (PIECE_TYPE(p) == PieceType::NONE || PIECE_COLOR(p) == enemy)
                 analyzer_add_move(board, row, col, r, c, moves, enemy);
         }
@@ -320,7 +320,7 @@ namespace game
     {
         using enum PieceType;
         AvailableSquares moves{};
-        if (const auto piece = board->pieces[board_get_index(row, col)]; PIECE_TYPE(piece) != NONE)
+        if (const auto piece = board->pieces[Board::board_get_index(row, col)]; PIECE_TYPE(piece) != NONE)
         {
             const auto enemy_color = chess_piece_other_color(PIECE_COLOR(piece));
             switch (PIECE_TYPE(piece))
@@ -354,7 +354,7 @@ namespace game
         for (int8_t r = 0; r < 8; ++r)
             for (int8_t c = 0; c < 8; ++c)
             {
-                const auto p = board->pieces[board_get_index(r, c)];
+                const auto p = board->pieces[Board::board_get_index(r, c)];
                 if (PIECE_TYPE(p) == PieceType::KING && PIECE_COLOR(p) == color)
                 {
                     kr = r;
@@ -381,7 +381,7 @@ namespace game
         {
             if (PIECE_COLOR(board->pieces[i]) == color)
             {
-                const auto [bits] = analyzer_get_available_moves_for_piece(board, board_get_row(i), board_get_col(i));
+                const auto [bits] = analyzer_get_available_moves_for_piece(board, Board::board_get_row(i), Board::board_get_col(i));
                 if (bits != 0)
                 {
                     return false;
@@ -397,8 +397,8 @@ namespace game
         using enum PieceType;
         AlgebraicMove alg{};
         Board board_copy = *board;
-        const int32_t fromIdx = board_get_index(move.from_row, move.from_col);
-        const int32_t toIdx = board_get_index(move.to_row, move.to_col);
+        const int32_t fromIdx = Board::board_get_index(move.from_row, move.from_col);
+        const int32_t toIdx = Board::board_get_index(move.to_row, move.to_col);
 
         const Piece moving = board->pieces[fromIdx];
         const Piece target = board->pieces[toIdx];
@@ -427,7 +427,7 @@ namespace game
             }
         }
 
-        board_move_no_check(&board_copy, move.from_row, move.from_col, move.to_row, move.to_col);
+        board_copy.board_move_no_check(move.from_row, move.from_col, move.to_row, move.to_col);
 
         alg.is_checkmate = analyzer_is_color_in_checkmate(&board_copy, chess_piece_other_color(PIECE_COLOR(moving)));
         alg.is_check = !alg.is_checkmate && analyzer_is_color_in_check(&board_copy,
@@ -440,8 +440,8 @@ namespace game
                 continue; // Skip the moved piece and the target square
             }
 
-            const int32_t row = board_get_row(i);
-            const int32_t col = board_get_col(i);
+            const int32_t row = Board::board_get_row(i);
+            const int32_t col = Board::board_get_col(i);
             const AvailableSquares moves = analyzer_get_available_moves_for_piece(board, row, col);
             if (moves.get(move.to_row, move.to_col))
             {
@@ -467,8 +467,8 @@ namespace game
         Square square{};
         for (uint8_t i = 0; i < 64; ++i)
         {
-            const auto row = board_get_row(i);
-            const auto col = board_get_col(i);
+            const auto row = Board::board_get_row(i);
+            const auto col = Board::board_get_col(i);
             if (disambiguation_col != -1 && disambiguation_col != col)
             {
                 continue;
@@ -486,5 +486,20 @@ namespace game
             }
         }
         return square; // Return an empty square if not found
+    }
+
+    int32_t
+    analyzer_get_move_count(const Board *board, Color color)
+    {
+        int32_t count = 0;
+        for (uint8_t i = 0; i < 64; ++i)
+        {
+            if (PIECE_COLOR(board->pieces[i]) == color)
+            {
+                const auto moves = analyzer_get_available_moves_for_piece(board, Board::board_get_row(i), Board::board_get_col(i));
+                count += moves.move_count();
+            }
+        }
+        return count;
     }
 } // namespace game

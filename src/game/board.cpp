@@ -7,9 +7,9 @@
 namespace game
 {
     void
-    board_populate(Board *board)
+    Board::board_populate()
     {
-        std::memcpy(board->pieces.data(), StartingPosition.data(), sizeof(board->pieces));
+        std::memcpy(pieces.data(), StartingPosition.data(), sizeof(pieces));
     }
 
     static bool
@@ -23,11 +23,11 @@ namespace game
         }
 
         // Check if the target cell is empty or occupied by an opponent's piece
-        const int32_t from_index = board_get_index(from_row, from_col);
-        const int32_t to_index = board_get_index(to_row, to_col);
+        const int32_t from_index = Board::board_get_index(from_row, from_col);
+        const int32_t to_index = Board::board_get_index(to_row, to_col);
         const Piece from_piece = board->pieces[from_index];
         if (const Piece to_piece = board->pieces[to_index]; PIECE_TYPE(to_piece) != PieceType::NONE &&
-                                                                 PIECE_COLOR(to_piece) == PIECE_COLOR(from_piece))
+                                                            PIECE_COLOR(to_piece) == PIECE_COLOR(from_piece))
         {
             return false; // Cannot capture own piece
         }
@@ -40,12 +40,12 @@ namespace game
         return true;
     }
 
-    bool
+    static bool
     board_is_castle(const Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row,
                     const int32_t to_col)
     {
         (void)to_row;
-        if (const Piece from_piece = board->pieces[board_get_index(from_row, from_col)];
+        if (const Piece from_piece = board->pieces[Board::board_get_index(from_row, from_col)];
             PIECE_TYPE(from_piece) == PieceType::KING && std::abs(from_col - to_col) > 1)
         {
             return true;
@@ -58,12 +58,12 @@ namespace game
                         const int32_t to_col)
     {
         (void)to_row;
-        if (const Piece to_piece = board->pieces[board_get_index(to_row, to_col)];
+        if (const Piece to_piece = board->pieces[Board::board_get_index(to_row, to_col)];
             PIECE_TYPE(to_piece) != PieceType::NONE)
         {
             return false;
         }
-        if (const Piece from_piece = board->pieces[board_get_index(from_row, from_col)];
+        if (const Piece from_piece = board->pieces[Board::board_get_index(from_row, from_col)];
             PIECE_TYPE(from_piece) == PieceType::PAWN && from_col != to_col)
         {
             return true;
@@ -75,14 +75,14 @@ namespace game
     board_do_castle(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row,
                     const int32_t to_col)
     {
-        Piece const &king = board->pieces[board_get_index(from_row, from_col)];
-        Piece &rook = board->pieces[board_get_index(from_row, from_col - to_col > 0 ? 0 : 7)];
+        Piece const &king = board->pieces[Board::board_get_index(from_row, from_col)];
+        Piece &rook = board->pieces[Board::board_get_index(from_row, from_col - to_col > 0 ? 0 : 7)];
 
-        board->pieces[board_get_index(from_row, from_col - to_col > 0 ? 3 : 5)] = rook;
+        board->pieces[Board::board_get_index(from_row, from_col - to_col > 0 ? 3 : 5)] = rook;
         rook = PIECE_NONE; // Remove the rook from the original position
 
-        board->pieces[board_get_index(to_row, to_col)] = king;
-        board->pieces[board_get_index(from_row, from_col)] = PIECE_NONE; // Remove the king from the original position
+        board->pieces[Board::board_get_index(to_row, to_col)] = king;
+        board->pieces[Board::board_get_index(from_row, from_col)] = PIECE_NONE; // Remove the king from the original position
     }
 
     static void
@@ -90,10 +90,10 @@ namespace game
                   const int32_t to_col)
     {
         board->en_passant_index = -1; // Reset en passant index
-        Piece const &from_piece = board->pieces[board_get_index(from_row, from_col)];
+        Piece const &from_piece = board->pieces[Board::board_get_index(from_row, from_col)];
         if (PIECE_TYPE(from_piece) == PieceType::PAWN && std::abs(from_row - to_row) == 2)
         {
-            board->en_passant_index = static_cast<int8_t>(board_get_index(to_row, to_col));
+            board->en_passant_index = static_cast<int8_t>(Board::board_get_index(to_row, to_col));
         }
 
         if (PIECE_TYPE(from_piece) == PieceType::KING)
@@ -118,25 +118,25 @@ namespace game
             // Remove the captured pawn
             const int32_t captured_row = PIECE_COLOR(from_piece) == PIECE_WHITE ? to_row - 1 : to_row + 1;
             const int32_t captured_col = to_col;
-            board->pieces[board_get_index(captured_row, captured_col)] = PIECE_NONE;
+            board->pieces[Board::board_get_index(captured_row, captured_col)] = PIECE_NONE;
         }
-        board->pieces[board_get_index(to_row, to_col)] = from_piece;
-        board->pieces[board_get_index(from_row, from_col)] = PIECE_NONE;
+        board->pieces[Board::board_get_index(to_row, to_col)] = from_piece;
+        board->pieces[Board::board_get_index(from_row, from_col)] = PIECE_NONE;
     }
 
     bool
-    board_move(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row,
-               const int32_t to_col)
+    Board::board_move(const int32_t from_row, const int32_t from_col, const int32_t to_row,
+                      const int32_t to_col)
     {
-        if (board_can_move_basic(board, from_row, from_col, to_row, to_col))
+        if (board_can_move_basic(this, from_row, from_col, to_row, to_col))
         {
-            if (board_is_castle(board, from_row, from_col, to_row, to_col))
+            if (board_is_castle(this, from_row, from_col, to_row, to_col))
             {
-                board_do_castle(board, from_row, from_col, to_row, to_col);
+                board_do_castle(this, from_row, from_col, to_row, to_col);
             }
             else
             {
-                board_do_move(board, from_row, from_col, to_row, to_col);
+                board_do_move(this, from_row, from_col, to_row, to_col);
             }
             return true;
         }
@@ -144,21 +144,21 @@ namespace game
     }
 
     void
-    board_move_no_check(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row,
-                        const int32_t to_col)
+    Board::board_move_no_check(const int32_t from_row, const int32_t from_col, const int32_t to_row,
+                               const int32_t to_col)
     {
-        if (board_is_castle(board, from_row, from_col, to_row, to_col))
+        if (board_is_castle(this, from_row, from_col, to_row, to_col))
         {
-            board_do_castle(board, from_row, from_col, to_row, to_col);
+            board_do_castle(this, from_row, from_col, to_row, to_col);
         }
         else
         {
-            board_do_move(board, from_row, from_col, to_row, to_col);
+            board_do_move(this, from_row, from_col, to_row, to_col);
         }
     }
 
     bool
-    board_move(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row, const int32_t to_col,
+    Board::board_move(const int32_t from_row, const int32_t from_col, const int32_t to_row, const int32_t to_col,
                AlgebraicMove &out_alg)
     {
         const SimpleMove move{
@@ -166,8 +166,8 @@ namespace game
             static_cast<uint8_t>(from_col),
             static_cast<uint8_t>(to_row),
             static_cast<uint8_t>(to_col)};
-        out_alg = analyzer_get_algebraic_move(board, move);
-        if (board_move(board, from_row, from_col, to_row, to_col))
+        out_alg = analyzer_get_algebraic_move(this, move);
+        if (board_move(from_row, from_col, to_row, to_col))
         {
             return true;
         }
@@ -175,31 +175,31 @@ namespace game
     }
 
     bool
-    board_promote(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row,
-                  const int32_t to_col,
-                  const PieceType type)
+    Board::board_promote(const int32_t from_row, const int32_t from_col, const int32_t to_row,
+                         const int32_t to_col,
+                         const PieceType type)
     {
-        if (board_can_move_basic(board, from_row, from_col, to_row, to_col))
+        if (board_can_move_basic(this, from_row, from_col, to_row, to_col))
         {
-            board->pieces[board_get_index(to_row, to_col)] = chess_piece_make(type, PIECE_COLOR(board->pieces[board_get_index(from_row, from_col)]));
-            board->pieces[board_get_index(from_row, from_col)] = PIECE_NONE;
+            pieces[Board::board_get_index(to_row, to_col)] = chess_piece_make(type, PIECE_COLOR(pieces[Board::board_get_index(from_row, from_col)]));
+            pieces[Board::board_get_index(from_row, from_col)] = PIECE_NONE;
             return true;
         }
         return false;
     }
 
     bool
-    board_promote(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row,
-                  const int32_t to_col,
-                  AlgebraicMove &out_alg, const PieceType type)
+    Board::board_promote(const int32_t from_row, const int32_t from_col, const int32_t to_row,
+                         const int32_t to_col,
+                         AlgebraicMove &out_alg, const PieceType type)
     {
         const SimpleMove move{
             static_cast<uint8_t>(from_row),
             static_cast<uint8_t>(from_col),
             static_cast<uint8_t>(to_row),
             static_cast<uint8_t>(to_col)};
-        out_alg = analyzer_get_algebraic_move(board, move);
-        if (board_promote(board, from_row, from_col, to_row, to_col, type))
+        out_alg = analyzer_get_algebraic_move(this, move);
+        if (board_promote(from_row, from_col, to_row, to_col, type))
         {
             return true;
         }
