@@ -18,7 +18,7 @@ namespace game
 
     static bool
     analyzer_is_pawn_attacking(const Board *board, const int32_t row, const int32_t col,
-                               const ChessPieceColor attacker)
+                               const Color attacker)
     {
         const int32_t pawn_dir = (attacker == PIECE_WHITE ? -1 : +1);
         for (const int32_t dc : {-1, +1})
@@ -28,7 +28,7 @@ namespace game
                 r >= 0 && r < 8 && c >= 0 && c < 8)
             {
                 auto p = board->pieces[board_get_index(r, c)];
-                if (PIECE_TYPE(p) == ChessPieceType::PAWN && PIECE_COLOR(p) == attacker)
+                if (PIECE_TYPE(p) == PieceType::PAWN && PIECE_COLOR(p) == attacker)
                     return true;
             }
         }
@@ -37,7 +37,7 @@ namespace game
 
     static bool
     analyzer_is_knight_attacking(const Board *board, const int32_t row, const int32_t col,
-                                 const ChessPieceColor attacker)
+                                 const Color attacker)
     {
         for (auto [dr, dc] : KNIGHT_DELTAS)
         {
@@ -46,7 +46,7 @@ namespace game
             if (r >= 0 && r < 8 && c >= 0 && c < 8)
             {
                 auto p = board->pieces[board_get_index(r, c)];
-                if (PIECE_TYPE(p) == ChessPieceType::KNIGHT && PIECE_COLOR(p) == attacker)
+                if (PIECE_TYPE(p) == PieceType::KNIGHT && PIECE_COLOR(p) == attacker)
                     return true;
             }
         }
@@ -55,9 +55,9 @@ namespace game
 
     static bool
     analyzer_is_slider_attacking(const Board *board, const int32_t row, const int32_t col,
-                                 const ChessPieceColor attacker)
+                                 const Color attacker)
     {
-        using enum ChessPieceType;
+        using enum PieceType;
         for (auto [dr, dc] : KING_DELTAS)
         {
             int32_t r = row + dr;
@@ -87,7 +87,7 @@ namespace game
 
     static bool
     analyzer_is_king_attacking(const Board *board, const int32_t row, const int32_t col,
-                               const ChessPieceColor attacker)
+                               const Color attacker)
     {
         for (auto [dr, dc] : KING_DELTAS)
         {
@@ -96,7 +96,7 @@ namespace game
             if (r >= 0 && r < 8 && c >= 0 && c < 8)
             {
                 auto p = board->pieces[board_get_index(r, c)];
-                if (PIECE_TYPE(p) == ChessPieceType::KING && PIECE_COLOR(p) == attacker)
+                if (PIECE_TYPE(p) == PieceType::KING && PIECE_COLOR(p) == attacker)
                     return true;
             }
         }
@@ -104,7 +104,7 @@ namespace game
     }
 
     bool analyzer_is_cell_under_attack_by_color(
-        const Board *board, const int32_t row, const int32_t col, const ChessPieceColor attacker)
+        const Board *board, const int32_t row, const int32_t col, const Color attacker)
     {
         if (analyzer_is_pawn_attacking(board, row, col, attacker))
         {
@@ -126,14 +126,14 @@ namespace game
 
     static bool
     analyzer_add_move(const Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row,
-                      const int32_t to_col, AvailableSquares &moves, ChessPieceColor enemy)
+                      const int32_t to_col, AvailableSquares &moves, Color enemy)
     {
         const auto friendly = chess_piece_other_color(enemy);
         if (to_row < 0 || to_row >= 8 || to_col < 0 || to_col >= 8)
             return false;
         const auto target = board->pieces[board_get_index(to_row, to_col)];
         Board aux_board = *board;
-        if (PIECE_TYPE(target) == ChessPieceType::NONE)
+        if (PIECE_TYPE(target) == PieceType::NONE)
         {
             board_move_no_check(&aux_board, from_row, from_col, to_row, to_col);
             if (!analyzer_is_color_in_check(&aux_board, friendly))
@@ -158,19 +158,19 @@ namespace game
 
     static void
     analyzer_get_pawn_moves(const Board *board, const Piece piece, const int32_t row, const int32_t col,
-                            const ChessPieceColor enemy, AvailableSquares &moves)
+                            const Color enemy, AvailableSquares &moves)
     {
         const auto friendly = PIECE_COLOR(piece);
         const int32_t dir = (friendly == PIECE_WHITE ? 1 : -1);
         // one-step
         const int32_t r1 = row + dir;
-        if (const int32_t c1 = col; r1 >= 0 && r1 < 8 && PIECE_TYPE(board->pieces[board_get_index(r1, c1)]) == ChessPieceType::NONE)
+        if (const int32_t c1 = col; r1 >= 0 && r1 < 8 && PIECE_TYPE(board->pieces[board_get_index(r1, c1)]) == PieceType::NONE)
         {
             std::ignore = analyzer_add_move(board, row, col, r1, c1, moves, enemy);
             // two-step from home rank
             if (const int32_t r2 = row + 2 * dir;
                 board_pawn_first_move(piece, row) && PIECE_TYPE(board->pieces[board_get_index(r2, c1)]) ==
-                                                         ChessPieceType::NONE)
+                                                         PieceType::NONE)
             {
                 std::ignore = analyzer_add_move(board, row, col, r2, c1, moves, enemy);
             }
@@ -180,12 +180,12 @@ namespace game
         {
             const int32_t c2 = col + dc;
             const int32_t r2 = row + dir;
-            if (r2 >= 0 && r2 < 8 && c2 >= 0 && c2 < 8)
+            if (r2 < 0 || r2 >= 8 || c2 < 0 || c2 >= 8)
             {
                 continue;
             }
             if (const auto p = board->pieces[board_get_index(r2, c2)];
-                PIECE_TYPE(p) != ChessPieceType::NONE && PIECE_COLOR(p) == enemy)
+                PIECE_TYPE(p) != PieceType::NONE && PIECE_COLOR(p) == enemy)
             {
                 std::ignore = analyzer_add_move(board, row, col, r2, c2, moves, enemy);
             }
@@ -225,9 +225,9 @@ namespace game
 
     static void
     analyzer_get_king_moves(const Board *board, const Piece piece, const int32_t row, const int32_t col,
-                            const ChessPieceColor enemy, AvailableSquares &moves)
+                            const Color enemy, AvailableSquares &moves)
     {
-        using enum ChessPieceType;
+        using enum PieceType;
         const auto friendly = PIECE_COLOR(piece);
         for (auto [dr, dc] : KING_DELTAS)
         {
@@ -273,21 +273,21 @@ namespace game
 
     static void
     analyzer_get_sliders_moves(const Board *board, const Piece piece, const int32_t row, const int32_t col,
-                               const ChessPieceColor enemy, AvailableSquares &moves)
+                               const Color enemy, AvailableSquares &moves)
     {
         for (auto [dr, dc] : KING_DELTAS)
         {
             // skip impossible increment for ROOK and BISHOP
-            if (PIECE_TYPE(piece) == ChessPieceType::ROOK && dr != 0 && dc != 0)
+            if (PIECE_TYPE(piece) == PieceType::ROOK && dr != 0 && dc != 0)
                 continue;
-            if (PIECE_TYPE(piece) == ChessPieceType::BISHOP && (dr == 0 || dc == 0))
+            if (PIECE_TYPE(piece) == PieceType::BISHOP && (dr == 0 || dc == 0))
                 continue;
 
             int32_t r = row + dr;
             int32_t c = col + dc;
             auto is_enemy_next = [&r, &c, &board, &enemy]()
             {
-                return PIECE_TYPE(board->pieces[board_get_index(r, c)]) != ChessPieceType::NONE && PIECE_COLOR(board->pieces[board_get_index(r, c)]) == enemy;
+                return PIECE_TYPE(board->pieces[board_get_index(r, c)]) != PieceType::NONE && PIECE_COLOR(board->pieces[board_get_index(r, c)]) == enemy;
             };
             // add until a move is blocked encounters a piece, or is not valid
             while (analyzer_add_move(board, row, col, r, c, moves, enemy) && !is_enemy_next())
@@ -300,7 +300,7 @@ namespace game
 
     static void
     analyzer_get_poney_moves(const Board *board, const Piece piece, const int32_t row, const int32_t col,
-                             const ChessPieceColor enemy, AvailableSquares &moves)
+                             const Color enemy, AvailableSquares &moves)
     {
         (void)piece;
         for (auto [dr, dc] : KNIGHT_DELTAS)
@@ -310,7 +310,7 @@ namespace game
             if (r < 0 || r >= 8 || c < 0 || c >= 8)
                 continue;
             auto p = board->pieces[board_get_index(r, c)];
-            if (PIECE_TYPE(p) == ChessPieceType::NONE || PIECE_COLOR(p) == enemy)
+            if (PIECE_TYPE(p) == PieceType::NONE || PIECE_COLOR(p) == enemy)
                 analyzer_add_move(board, row, col, r, c, moves, enemy);
         }
     }
@@ -318,7 +318,7 @@ namespace game
     AvailableSquares
     analyzer_get_available_moves_for_piece(const Board *board, const int32_t row, const int32_t col)
     {
-        using enum ChessPieceType;
+        using enum PieceType;
         AvailableSquares moves{};
         if (const auto piece = board->pieces[board_get_index(row, col)]; PIECE_TYPE(piece) != NONE)
         {
@@ -347,7 +347,7 @@ namespace game
     }
 
     bool
-    analyzer_is_color_in_check(const Board *board, ChessPieceColor color)
+    analyzer_is_color_in_check(const Board *board, Color color)
     {
         int8_t kr = -1;
         int8_t kc = -1;
@@ -355,7 +355,7 @@ namespace game
             for (int8_t c = 0; c < 8; ++c)
             {
                 const auto p = board->pieces[board_get_index(r, c)];
-                if (PIECE_TYPE(p) == ChessPieceType::KING && PIECE_COLOR(p) == color)
+                if (PIECE_TYPE(p) == PieceType::KING && PIECE_COLOR(p) == color)
                 {
                     kr = r;
                     kc = c;
@@ -371,7 +371,7 @@ namespace game
     }
 
     bool
-    analyzer_is_color_in_checkmate(const Board *board, ChessPieceColor color)
+    analyzer_is_color_in_checkmate(const Board *board, Color color)
     {
         if (!analyzer_is_color_in_check(board, color))
         {
@@ -394,7 +394,7 @@ namespace game
     AlgebraicMove
     analyzer_get_algebraic_move(const Board *board, const SimpleMove &move)
     {
-        using enum ChessPieceType;
+        using enum PieceType;
         AlgebraicMove alg{};
         Board board_copy = *board;
         const int32_t fromIdx = board_get_index(move.from_row, move.from_col);
@@ -460,7 +460,7 @@ namespace game
     }
 
     Square
-    analyzer_where(const Board *board, const ChessPieceType type, const ChessPieceColor color,
+    analyzer_where(const Board *board, const PieceType type, const Color color,
                    const int32_t disambiguation_col,
                    const int32_t disambiguation_row)
     {

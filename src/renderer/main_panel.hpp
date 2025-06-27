@@ -3,14 +3,16 @@
 #include <cstdint>
 #include <filesystem>
 #include "../game/move.hpp"
-#include "../utils/utils.hpp"
 namespace renderer {
     struct MainPanel {
         constexpr static int32_t ControlPanelWidth = 350;
-        int32_t width;
-        int32_t height;
-        int32_t control_panel_x;
-        VisualBoard visual_board;
+        int32_t width{};
+        int32_t height{};
+        int32_t control_panel_x{};
+        VisualBoard visual_board{};
+        int32_t list_scroll{};
+        int32_t list_active_index{};
+        utils::string_list moves_list{};
     };
 
     void
@@ -21,4 +23,7 @@ namespace renderer {
 
     void
     main_panel_draw(MainPanel *panel);
+
+    void
+    main_panel_push_move(MainPanel *panel, const game::AlgebraicMove &move);
 }

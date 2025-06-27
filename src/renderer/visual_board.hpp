@@ -20,11 +20,11 @@ namespace renderer {
         Rectangle piece_original_rects[12];
         Font font_big;
         Font font_small;
-        Sound capture_sound;
+        Sound move_sound;
+        Sound check_sound;
         game::Board board;
         game::Piece dragging_piece;
         game::AvailableSquares dragging_piece_available_moves;
-        utils::list<game::AlgebraicMove> moves;
         uint8_t dragging_piece_row;
         uint8_t dragging_piece_col;
         int32_t last_moved_piece_dest_row;

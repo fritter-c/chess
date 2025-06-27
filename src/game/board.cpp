@@ -9,7 +9,7 @@ namespace game
     void
     board_populate(Board *board)
     {
-        std::memcpy(board->pieces, StartingPosition, sizeof(board->pieces));
+        std::memcpy(board->pieces.data(), StartingPosition.data(), sizeof(board->pieces));
     }
 
     static bool
@@ -26,13 +26,13 @@ namespace game
         const int32_t from_index = board_get_index(from_row, from_col);
         const int32_t to_index = board_get_index(to_row, to_col);
         const Piece from_piece = board->pieces[from_index];
-        if (const Piece to_piece = board->pieces[to_index]; PIECE_TYPE(to_piece) != ChessPieceType::NONE &&
+        if (const Piece to_piece = board->pieces[to_index]; PIECE_TYPE(to_piece) != PieceType::NONE &&
                                                                  PIECE_COLOR(to_piece) == PIECE_COLOR(from_piece))
         {
             return false; // Cannot capture own piece
         }
 
-        if (PIECE_TYPE(from_piece) == ChessPieceType::NONE)
+        if (PIECE_TYPE(from_piece) == PieceType::NONE)
         {
             return false; // No piece to move
         }
@@ -46,7 +46,7 @@ namespace game
     {
         (void)to_row;
         if (const Piece from_piece = board->pieces[board_get_index(from_row, from_col)];
-            PIECE_TYPE(from_piece) == ChessPieceType::KING && std::abs(from_col - to_col) > 1)
+            PIECE_TYPE(from_piece) == PieceType::KING && std::abs(from_col - to_col) > 1)
         {
             return true;
         }
@@ -59,12 +59,12 @@ namespace game
     {
         (void)to_row;
         if (const Piece to_piece = board->pieces[board_get_index(to_row, to_col)];
-            PIECE_TYPE(to_piece) != ChessPieceType::NONE)
+            PIECE_TYPE(to_piece) != PieceType::NONE)
         {
             return false;
         }
         if (const Piece from_piece = board->pieces[board_get_index(from_row, from_col)];
-            PIECE_TYPE(from_piece) == ChessPieceType::PAWN && from_col != to_col)
+            PIECE_TYPE(from_piece) == PieceType::PAWN && from_col != to_col)
         {
             return true;
         }
@@ -75,7 +75,7 @@ namespace game
     board_do_castle(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row,
                     const int32_t to_col)
     {
-        Piece &king = board->pieces[board_get_index(from_row, from_col)];
+        Piece const &king = board->pieces[board_get_index(from_row, from_col)];
         Piece &rook = board->pieces[board_get_index(from_row, from_col - to_col > 0 ? 0 : 7)];
 
         board->pieces[board_get_index(from_row, from_col - to_col > 0 ? 3 : 5)] = rook;
@@ -90,21 +90,18 @@ namespace game
                   const int32_t to_col)
     {
         board->en_passant_index = -1; // Reset en passant index
-        Piece &from_piece = board->pieces[board_get_index(from_row, from_col)];
-        if (PIECE_TYPE(from_piece) == ChessPieceType::PAWN)
+        Piece const &from_piece = board->pieces[board_get_index(from_row, from_col)];
+        if (PIECE_TYPE(from_piece) == PieceType::PAWN && std::abs(from_row - to_row) == 2)
         {
-            if (std::abs(from_row - to_row) == 2)
-            {
-                board->en_passant_index = board_get_index(to_row, to_col);
-            }
+            board->en_passant_index = static_cast<int8_t>(board_get_index(to_row, to_col));
         }
 
-        if (PIECE_TYPE(from_piece) == ChessPieceType::KING)
+        if (PIECE_TYPE(from_piece) == PieceType::KING)
         {
             board->castle_rights &= PIECE_COLOR(from_piece) ? ~CASTLE_BLACK_ALL : ~CASTLE_WHITE_ALL;
         }
         // Needs to verify the row in case of extra rooks
-        else if (PIECE_TYPE(from_piece) == ChessPieceType::ROOK)
+        else if (PIECE_TYPE(from_piece) == PieceType::ROOK)
         {
             if (from_col == 0)
             {
@@ -180,7 +177,7 @@ namespace game
     bool
     board_promote(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row,
                   const int32_t to_col,
-                  const ChessPieceType type)
+                  const PieceType type)
     {
         if (board_can_move_basic(board, from_row, from_col, to_row, to_col))
         {
@@ -194,7 +191,7 @@ namespace game
     bool
     board_promote(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row,
                   const int32_t to_col,
-                  AlgebraicMove &out_alg, const ChessPieceType type)
+                  AlgebraicMove &out_alg, const PieceType type)
     {
         const SimpleMove move{
             static_cast<uint8_t>(from_row),

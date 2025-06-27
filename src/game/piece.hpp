@@ -1,95 +1,76 @@
 #pragma once
 #include <cstdint>
-
-namespace game
-{
-    enum class ChessPieceType : uint8_t
-    {
+#include <utility>
+namespace game {
+    enum PieceType : uint8_t {
         NONE,
-        KING,
-        QUEEN,
-        BISHOP,
+        PAWN,
         KNIGHT,
+        BISHOP,
         ROOK,
-        PAWN
+        QUEEN,
+        KING,
+        PIECE_COUNT
     };
 
-    enum PromotionPieceType : uint8_t
-    {
+    enum Piece : int8_t {
+        PIECE_NONE,
+        WHITE_PAWN,
+        WHITE_KNIGHT,
+        WHITE_BISHOP,
+        WHITE_ROOK,
+        WHITE_QUEEN,
+        WHITE_KING,
+        BLACK_PAWN = WHITE_PAWN + 8,
+        BLACK_KNIGHT,
+        BLACK_BISHOP,
+        BLACK_ROOK,
+        BLACK_QUEEN,
+        BLACK_KING,
+        PIECE_CB = 16
+    };
+
+    enum Color : int8_t {
+        PIECE_WHITE,
+        PIECE_BLACK
+    };
+
+    constexpr Color operator~(const Color color) {
+        return static_cast<Color>(color ^ PIECE_BLACK);
+    }
+
+    inline Color
+    chess_piece_other_color(const Color color) {
+        return ~color;
+    }
+
+
+    enum PromotionPieceType : uint8_t {
         PROMOTION_QUEEN = 0,
         PROMOTION_ROOK,
         PROMOTION_BISHOP,
         PROMOTION_KNIGHT
     };
 
-    enum ChessPieceColor : uint8_t
-    {
-        PIECE_WHITE,
-        PIECE_BLACK
-    };
+#define PIECE_TYPE(PIECE) static_cast<game::PieceType>(PIECE & 7)
+#define PIECE_COLOR(PIECE)static_cast<game::Color>(PIECE >> 3)
 
-    inline ChessPieceColor
-    chess_piece_other_color(const ChessPieceColor color)
-    {
-        return static_cast<ChessPieceColor>(!color);
-    }
-
-    enum Piece : int8_t
-    {
-        PIECE_NONE,
-        WHITE_KING,
-        WHITE_QUEEN,
-        WHITE_BISHOP,
-        WHITE_KNIGHT,
-        WHITE_ROOK,
-        WHITE_PAWN,
-        BLACK_KING,
-        BLACK_QUEEN,
-        BLACK_BISHOP,
-        BLACK_KNIGHT,
-        BLACK_ROOK,
-        BLACK_PAWN
-
-    };
-
-    static constexpr ChessPieceType PIECE_TYPES_TABLE[] = {
-        ChessPieceType::NONE,
-        ChessPieceType::KING,
-        ChessPieceType::QUEEN,
-        ChessPieceType::BISHOP,
-        ChessPieceType::KNIGHT,
-        ChessPieceType::ROOK,
-        ChessPieceType::PAWN,
-        ChessPieceType::KING,
-        ChessPieceType::QUEEN,
-        ChessPieceType::BISHOP,
-        ChessPieceType::KNIGHT,
-        ChessPieceType::ROOK,
-        ChessPieceType::PAWN};
-
-#define PIECE_TYPE(PIECE) game::PIECE_TYPES_TABLE[static_cast<int>(PIECE)]
-#define PIECE_COLOR(PIECE) ((PIECE) < game::BLACK_KING ? game::PIECE_WHITE : game::PIECE_BLACK)
-
-    inline Piece
-    chess_piece_make(const ChessPieceType type, const ChessPieceColor color)
-    {
-        return static_cast<Piece>(static_cast<int>(type) + (color == ChessPieceColor::PIECE_BLACK ? 6 : 0));
+    constexpr  Piece
+    chess_piece_make(const PieceType type, const Color color) {
+        return static_cast<Piece>((color << 3) + type);
     }
 
     inline char
-    chess_piece_to_algebraic_letter(const ChessPieceType type)
-    {
-        constexpr static char ALGEBRAIC_TABLE[] = {'K', 'Q', 'B', 'N', 'R'};
-        if (type == ChessPieceType::PAWN || type == ChessPieceType::NONE)
-        {
+    chess_piece_to_algebraic_letter(const PieceType type) {
+        constexpr static char ALGEBRAIC_TABLE[] = {'N', 'B', 'R', 'Q', 'K'};
+        if (type == PAWN || type == NONE) {
             return ' ';
         }
-        return ALGEBRAIC_TABLE[static_cast<int>(type) - 1];
+        return ALGEBRAIC_TABLE[std::to_underlying(type) - KNIGHT];
     }
 
     inline bool
-    chess_piece_is_piece_from_char(const char c)
-    {
+    chess_piece_is_piece_from_char(const char c) {
         return c == 'K' || c == 'Q' || c == 'B' || c == 'N' || c == 'R';
     }
 }

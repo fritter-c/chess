@@ -2,6 +2,7 @@
 #include <cstdint>
 #include "piece.hpp"
 #include <cstddef>
+#include <string>
 namespace game
 {
     struct SimpleMove
@@ -14,7 +15,7 @@ namespace game
 
     struct AlgebraicMove
     {
-        ChessPieceType piece_type : 3;
+        PieceType piece_type : 3;
         uint8_t from_col : 3;
         uint8_t to_col : 3;
         uint8_t from_row : 3;
@@ -49,10 +50,10 @@ namespace game
         static constexpr uint16_t DEST_MASK = ORIGIN_MASK;
         static constexpr uint16_t PROMO_MASK = (1u << 2) - 1;
         static constexpr uint16_t SPECIAL_MASK = PROMO_MASK;
-        static constexpr int ORIGIN_SHIFT = 0;
-        static constexpr int DEST_SHIFT = 6;
-        static constexpr int PROMO_SHIFT = 12;
-        static constexpr int SPECIAL_SHIFT = 14;
+        static constexpr uint16_t ORIGIN_SHIFT = 0;
+        static constexpr uint16_t DEST_SHIFT = 6;
+        static constexpr uint16_t PROMO_SHIFT = 12;
+        static constexpr uint16_t SPECIAL_SHIFT = 14;
 
         void set_origin(uint8_t o)
         {
@@ -88,6 +89,6 @@ namespace game
         }
     };
 
-    void
-    algebraic_move_to_string(const AlgebraicMove &move, char *buffer, size_t buffer_size);
+    std::string
+    algebraic_move_to_string(const AlgebraicMove &move);
 }

@@ -1,104 +1,53 @@
 #pragma once
 #include <cstdint>
-#include <cstdlib>
+#include <string>
 
-namespace utils
-{
-    template <typename T>
-    struct list
-    {
-        T *items;
-        uint32_t size;
-        uint32_t capacity;
+namespace utils {
+    // A simple string list that stores strings separated by semicolons
+    struct string_list {
+        std::string data;
+        uint32_t items;
 
-        void push_back(const T &item)
-        {
-            if (size == capacity)
-            {
-                reserve(capacity ? capacity * 2 : 1);
+        void append(const std::string &item) {
+            if (!data.empty()) {
+                data += ';';
             }
-            items[size++] = item;
+            data += item;
+            items++;
         }
 
-        void reserve(const uint32_t new_capacity)
-        {
-            if (new_capacity > capacity)
-            {
-                if (items)
-                {
-                    items = static_cast<T *>(std::realloc(items, sizeof(T) * new_capacity));
+        void append(const char *item) {
+            append(std::string(item));
+        }
+
+        void cut_at(uint32_t index) {
+            if (index < items) {
+                size_t pos = 0;
+                for (uint32_t i = 0; i < index; ++i) {
+                    pos = data.find(';', pos);
+                    if (pos == std::string::npos) break;
+                    pos++;
                 }
-                else
-                {
-                    items = static_cast<T *>(std::malloc(sizeof(T) * new_capacity));
-                }
-                capacity = new_capacity;
-                if (!items)
-                {
-                    exit(-1);
-                }
+                data.erase(0, pos);
+                items -= index;
+            } else {
+                data.clear();
+                items = 0;
             }
         }
 
-        T &operator[](const uint32_t index)
-        {
-            return items[index];
+        const char *c_str() const {
+            return data.c_str();
         }
 
-        void free()
-        {
-            if (items)
-            {
-                free(items);
-                items = nullptr;
-            }
-            size = 0;
-            capacity = 0;
-        }
-
-        void clear()
-        {
-            size = 0;
+        void clear() {
+            data.clear();
+            items = 0;
         }
     };
 
-    template <int Capacity = 32>
-    struct text_buffer
-    {
-        char text[Capacity]{};
-        text_buffer() = default;
-        text_buffer(const char *str)
-        {
-            strncpy(text, str, Capacity);
-        }
-
-        char *operator()()
-        {
-            return text;
-        }
-
-        void push_back(const char ch)
-        {
-            for (uint32_t i = 0; i < Capacity - 2; ++i)
-            {
-                if (text[i] == '\0')
-                {
-                    text[i] = ch;
-                    text[i + 1] = '\0';
-                    break;
-                }
-            }
-        }
-
-        int32_t size()
-        {
-            int32_t size = 0;
-            for (; size < Capacity && text[size] != '\0'; ++size)
-            {
-            }
-            return size;
-        }
-    };
-
-    using short_string = text_buffer<32>;
+    template<typename T>
+    T abs(T value) {
+        return (value < 0) ? -value : value;
+    }
 }
