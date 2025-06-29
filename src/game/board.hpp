@@ -148,5 +148,19 @@ namespace game {
                        ? std::to_integer<int>(castle_rights & CASTLE_BLACK_KINGSIDE) != 0
                        : std::to_integer<int>(castle_rights & CASTLE_BLACK_QUEENSIDE) != 0;
         }
+
+        constexpr bool
+        board_pawn_is_being_promoted(const SimpleMove move) const {
+            const auto piece = pieces[board_get_index(move.from_row, move.from_col)];
+            if (IS_PAWN(piece)) {
+                if (move.from_row == 6 && move.to_row == 7) {
+                    return IS_WHITE(piece);
+                }
+                if (move.from_row == 1 && move.to_row == 0) {
+                    return IS_BLACK(piece);
+                }
+            }
+            return false;
+        }
     };
 }

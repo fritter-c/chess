@@ -54,6 +54,9 @@ namespace game {
 
 #define PIECE_TYPE(PIECE) static_cast<game::PieceType>(PIECE & 7)
 #define PIECE_COLOR(PIECE)static_cast<game::Color>(PIECE >> 3)
+#define IS_WHITE(PIECE) PIECE_COLOR(PIECE) == game::PIECE_WHITE
+#define IS_BLACK(PIECE) PIECE_COLOR(PIECE) == game::PIECE_BLACK
+#define IS_PAWN(PIECE) PIECE_TYPE(PIECE) == game::PAWN
 
     constexpr  Piece
     chess_piece_make(const PieceType type, const Color color) {

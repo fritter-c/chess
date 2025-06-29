@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <utility>
 #include <array>
+#include "../utils/utils.hpp"
 
 namespace game {
     using RankArray = std::array<Piece, 8>;
@@ -101,8 +102,9 @@ namespace game {
     }
 
     inline bool
-    squares_same_diagonal(SquareIndex a, SquareIndex b) noexcept {
-        return std::abs(square_file(a) - square_file(b)) == std::abs(square_rank(a) - square_rank(b));
+    squares_same_diagonal
+    (const SquareIndex a,const SquareIndex b) noexcept {
+        return utils::abs(square_file(a) - square_file(b)) == utils::abs(square_rank(a) - square_rank(b));
     }
 
     constexpr bool

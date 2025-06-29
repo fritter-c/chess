@@ -47,7 +47,7 @@ namespace utils {
     };
 
     template<typename T>
-    T abs(T value) {
+    constexpr T abs(T value) {
         return (value < 0) ? -value : value;
     }
 }

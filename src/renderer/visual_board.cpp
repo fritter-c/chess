@@ -51,6 +51,12 @@ namespace renderer {
     }
 
     static void
+    visual_board_get_rect_for_mouse_pos(const VisualBoard *board, const ImVec2 mouse_pos, Rectangle &rect) {
+        rect.topLeft = mouse_pos - ImVec2(board->cell_size / 2.0f, board->cell_size / 2.0f);
+        rect.Size({board->cell_size, board->cell_size});
+    }
+
+    static void
     render_chess_pieces(const game::Game *game, const VisualBoard *board) {
         for (int32_t row = 7; row >= 0; --row) {
             for (int32_t col = 7; col >= 0; --col) {
@@ -61,6 +67,15 @@ namespace renderer {
                     visual_board_get_rect_for_cell(board, row, col, piece_rect);
                     const GLuint texture_id = render_get_piece_texture(board, piece);
                     ImGui::GetWindowDrawList()->AddImage(texture_id, piece_rect.topLeft, piece_rect.bottomRight);
+                    if (index == board->dragging_piece_index) {
+                        // Render a highlight around the piece being dragged
+                        ImGui::GetWindowDrawList()->AddRectFilled(
+                            piece_rect.topLeft,
+                            piece_rect.bottomRight,
+                            IM_COL32(255, 255, 0, 128), // semi-transparent yellow
+                            0.0f, ImDrawFlags_RoundCornersAll
+                        );
+                    }
                 }
             }
         }
@@ -77,7 +92,7 @@ namespace renderer {
     }
 
     static void
-    render_chess_board(const VisualBoard *board) {
+    render_chess_board(game::Game *game, VisualBoard *board) {
         const ImVec2 global_offset = apply_window_offset(board->board_offset);
         ImGui::SetCursorPos(ImVec2(board->board_offset.x, board->board_offset.y));
         // Grab the whole region so the window itself won't drag
@@ -122,9 +137,10 @@ namespace renderer {
                         IM_COL32(0, 255, 0, 255), 0.0f, ImDrawFlags_RoundCornersAll, 2.0f
                     );
                 }
-                if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-
-                }else {
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && board->dragging_piece_index == -1) {
+                    board->dragging_piece_index = game::Board::board_get_index(rank, file);
+                } else if (board->dragging_piece_index != -1 && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+                    board->dragging_piece_index = -1;
 
                 }
                 ImGui::PopID();
@@ -132,10 +148,22 @@ namespace renderer {
         }
     }
 
+    static void
+    render_dragging_piece( const game::Game *game, const VisualBoard *board) {
+        if (board->dragging_piece_index < 0) {
+            return;
+        }
+        Rectangle piece_rect{};
+        visual_board_get_rect_for_mouse_pos(board, ImGui::GetMousePos(), piece_rect);
+        const game::Piece piece = game->board.pieces[board->dragging_piece_index];
+        const GLuint texture_id = render_get_piece_texture(board, piece);
+        ImGui::GetWindowDrawList()->AddImage(texture_id, piece_rect.topLeft, piece_rect.bottomRight);
+    }
     void
     VisualBoard::render(game::Game *game, const float width, const float height) {
         resize(this, width, height);
-        render_chess_board(this);
+        render_chess_board(game, this);
         render_chess_pieces(game, this);
+        render_dragging_piece(game, this);
     }
 }
