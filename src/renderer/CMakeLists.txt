@@ -1,11 +1,10 @@
 file(GLOB RENDERER_SOURCES
-    "*.cpp"
-    "*.hpp"
-    "*.h"
-    "*.c"
+        "*.cpp"
+        "*.h"
+        "*.hpp"
 )
-
 add_library(renderer STATIC ${RENDERER_SOURCES})
+target_link_libraries(renderer PUBLIC imgui)
 
 if (MSVC)
     target_compile_options(renderer PRIVATE $<$<CONFIG:RelWithDebInfo>:/O2>
@@ -17,5 +16,3 @@ else ()
             $<$<CONFIG:Release>:-O3>
             $<$<CONFIG:MinSizeRel>:-O3>)
 endif ()
-
-target_link_libraries(renderer PRIVATE raylib)
