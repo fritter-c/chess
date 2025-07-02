@@ -18,6 +18,12 @@ namespace game {
     bool
     analyzer_is_color_in_check(const Board *board, Color color);
 
+    inline bool
+    analyzer_can_move(const Board *board, int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col)
+    {
+        return analyzer_get_available_moves_for_piece(board, Board::board_get_index(from_row, from_col)).get(Board::board_get_index(to_row, to_col));
+    }
+
     bool
     analyzer_is_color_in_checkmate(const Board *board, Color color);
 
@@ -34,4 +40,10 @@ namespace game {
 
     int32_t
     analyzer_get_move_count(const Board *board, Color color);
+
+    bool 
+    analyzer_get_is_stalemate(const Board *board, Color friendly);
+
+    bool 
+    analyzer_is_insufficient_material(const Board* board);
 } // namespace game

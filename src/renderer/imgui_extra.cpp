@@ -4,10 +4,13 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include "imgui.h"
 
-namespace ImGui {
+namespace ImGui
+{
     bool load_texture_from_memory(const uint8_t *data, size_t data_size, GLuint *out_texture, int *out_width,
-                                  int *out_height) {
+                                  int *out_height)
+    {
         // Load from file
         int image_width = 0;
         int image_height = 0;
@@ -40,7 +43,8 @@ namespace ImGui {
     bool load_texture_from_file(const std::filesystem::path &filename,
                                 GLuint &out_texture,
                                 int &out_width,
-                                int &out_height) {
+                                int &out_height)
+    {
         std::ifstream file{filename, std::ios::binary | std::ios::ate};
         if (!file)
             return false;
@@ -61,13 +65,28 @@ namespace ImGui {
                                         &out_height);
     }
 
-    GLuint LoadTexture(const std::filesystem::path &filename) {
+    GLuint LoadTexture(const std::filesystem::path &filename)
+    {
         int32_t width{};
         int32_t height{};
         GLuint texture{};
-        if (load_texture_from_file(filename, texture, width, height)) {
+        if (load_texture_from_file(filename, texture, width, height))
+        {
             return texture;
         }
         return INVALID_TEXTURE_ID;
+    }
+
+    void LoadFont(const std::filesystem::path &filename, float size)
+    {
+        auto& io = ImGui::GetIO();
+        if (io.Fonts->AddFontFromFileTTF(filename.string().c_str(), size) == nullptr)
+        {
+            fprintf(stderr, "Failed to load font: %s\n", filename.string().c_str());
+        }
+        else
+        {
+            io.FontDefault = io.Fonts->Fonts.back();
+        }
     }
 }

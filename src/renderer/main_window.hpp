@@ -5,6 +5,7 @@ namespace renderer {
     struct MainWindow {
         BoardPanel board_panel;
 
+        MainWindow();
         void render();
     };
 }

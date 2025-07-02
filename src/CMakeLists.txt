@@ -1,3 +1,4 @@
+add_subdirectory(third)
 add_subdirectory(renderer)
 add_subdirectory(game)
 add_executable(chess main.cpp)

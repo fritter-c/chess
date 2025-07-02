@@ -4,7 +4,7 @@ file(GLOB RENDERER_SOURCES
         "*.hpp"
 )
 add_library(renderer STATIC ${RENDERER_SOURCES})
-target_link_libraries(renderer PUBLIC imgui)
+target_link_libraries(renderer PUBLIC imgui miniaudio)
 
 if (MSVC)
     target_compile_options(renderer PRIVATE $<$<CONFIG:RelWithDebInfo>:/O2>

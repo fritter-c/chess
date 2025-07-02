@@ -19,5 +19,12 @@ namespace renderer {
                 bottomRight.y - topLeft.y
             };
         }
+
+        Vec2 Center() const{
+            return Vec2{
+                topLeft.x + Size().x / 2.0f,
+                topLeft.y + Size().y / 2.0f
+            };
+        }
     };
 }

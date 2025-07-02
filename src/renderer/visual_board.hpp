@@ -5,6 +5,8 @@
 #include "imgui.h"
 #include "imgui_extra.hpp"
 #include "../game/piece.hpp"
+#include "../game/board.hpp"
+#include "../third/miniaudio.h"
 namespace game {
     struct Game;
 }
@@ -17,7 +19,19 @@ namespace renderer {
         ImVec2 board_offset{};
         bool flipped{false};
         int32_t dragging_piece_index{-1};
+        ma_engine sound_engine;
+        ma_sound move_sound;
+        ma_sound check_sound;
+        int32_t row_hovered{-1};
+        int32_t col_hovered{-1};
+        game::AvailableSquares available_squares_for_dragging{};
+        
+        VisualBoard() = default;
+        ~VisualBoard() {cleanup();}
+
         bool load_textures(const std::filesystem::path &res_path);
         void render(game::Game *game, float width, float height);
+        void cleanup();
+        inline void flip_board() { flipped = !flipped; }
     };
 }
