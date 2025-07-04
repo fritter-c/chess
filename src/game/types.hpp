@@ -5,10 +5,49 @@
 #include <utility>
 #include <array>
 #include "../utils/utils.hpp"
+#include <cstddef>
 
 namespace game {
-    using RankArray = std::array<Piece, 8>;
-    using BoardArray = std::array<RankArray, 8>;
+    enum SquareIndex : uint8_t {
+        A1, B1, C1, D1, E1, F1, G1, H1,
+        A2, B2, C2, D2, E2, F2, G2, H2,
+        A3, B3, C3, D3, E3, F3, G3, H3,
+        A4, B4, C4, D4, E4, F4, G4, H4,
+        A5, B5, C5, D5, E5, F5, G5, H5,
+        A6, B6, C6, D6, E6, F6, G6, H6,
+        A7, B7, C7, D7, E7, F7, G7, H7,
+        A8, B8, C8, D8, E8, F8, G8, H8,
+        SQUARE_COUNT
+    };
+
+       enum File : uint8_t {
+        FILE_A,
+        FILE_B,
+        FILE_C,
+        FILE_D,
+        FILE_E,
+        FILE_F,
+        FILE_G,
+        FILE_H,
+        FILE_COUNT
+    };
+
+    enum Rank : uint8_t {
+        RANK_1,
+        RANK_2,
+        RANK_3,
+        RANK_4,
+        RANK_5,
+        RANK_6,
+        RANK_7,
+        RANK_8,
+        RANK_COUNT
+    };
+
+
+
+    using RankArray = std::array<Piece, static_cast<std::size_t>(FILE_COUNT)>;
+    using BoardArray = std::array<RankArray, static_cast<std::size_t>(RANK_COUNT)>;
 
     static constexpr BoardArray StartingPosition{
         {
@@ -63,8 +102,8 @@ namespace game {
         }
     };
 
-    using NameRank = std::array<const char *, 8>;
-    using NameArray = std::array<NameRank, 8>;
+    using NameRank = std::array<const char *, static_cast<std::size_t>(File::FILE_COUNT)>;
+    using NameArray = std::array<NameRank, static_cast<std::size_t>(Rank::RANK_COUNT)>;
 
     static constexpr NameArray CellNames{
         {
@@ -77,18 +116,6 @@ namespace game {
             NameRank{{"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7"}},
             NameRank{{"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8"}}
         }
-    };
-
-    enum SquareIndex : int8_t {
-        A1, B1, C1, D1, E1, F1, G1, H1,
-        A2, B2, C2, D2, E2, F2, G2, H2,
-        A3, B3, C3, D3, E3, F3, G3, H3,
-        A4, B4, C4, D4, E4, F4, G4, H4,
-        A5, B5, C5, D5, E5, F5, G5, H5,
-        A6, B6, C6, D6, E6, F6, G6, H6,
-        A7, B7, C7, D7, E7, F7, G7, H7,
-        A8, B8, C8, D8, E8, F8, G8, H8,
-        SQUARE_COUNT
     };
 
     constexpr int32_t
@@ -117,32 +144,9 @@ namespace game {
         return square_file(a) + square_rank(a) == square_file(b) + square_rank(b);
     }
 
-    enum class File : int8_t {
-        FILE_A,
-        FILE_B,
-        FILE_C,
-        FILE_D,
-        FILE_E,
-        FILE_F,
-        FILE_G,
-        FILE_H,
-        FILE_OUT
-    };
-
-    enum class Rank : int8_t {
-        RANK_1,
-        RANK_2,
-        RANK_3,
-        RANK_4,
-        RANK_5,
-        RANK_6,
-        RANK_7,
-        RANK_8,
-        RANK_OUT
-    };
-
+ 
     using BitBoard = uint64_t;
-
+    
     struct Square {
         uint8_t row: 4;
         uint8_t col: 4;
@@ -159,4 +163,5 @@ namespace game {
         CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE |
         CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE
     };
+    constexpr int8_t CASTLE_RIGHTS_COUNT{16};
 }

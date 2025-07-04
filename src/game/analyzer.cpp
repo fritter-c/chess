@@ -24,7 +24,7 @@ namespace game {
         for (const int32_t dc: {-1, +1}) {
             const int32_t r = row + pawn_dir;
             if (const int32_t c = col + dc;
-                r >= 0 && r < 8 && c >= 0 && c < 8) {
+                r >= RANK_1 && r < RANK_COUNT && c >= FILE_A && c < FILE_COUNT) {
                 auto p = board->pieces[Board::board_get_index(r, c)];
                 if (PIECE_TYPE(p) == PAWN && PIECE_COLOR(p) == attacker)
                     return true;
@@ -56,7 +56,7 @@ namespace game {
             int32_t r = row + dr;
             int32_t c = col + dc;
             int32_t dist = 1;
-            while (r >= 0 && r < 8 && c >= 0 && c < 8) {
+            while (r >= RANK_1 && r < RANK_COUNT && c >= FILE_A && c < FILE_COUNT) {
                 const auto p = board->pieces[Board::board_get_index(r, c)];
                 if (PIECE_TYPE(p) == EMPTY) {
                     ++dist;
@@ -83,7 +83,7 @@ namespace game {
         for (auto [dr, dc]: KING_DELTAS) {
             const int32_t r = row + dr;
             const int32_t c = col + dc;
-            if (r >= 0 && r < 8 && c >= 0 && c < 8) {
+            if (r >= RANK_1 && r < RANK_COUNT && c >= FILE_A && c < FILE_COUNT) {
                 auto p = board->pieces[Board::board_get_index(r, c)];
                 if (PIECE_TYPE(p) == KING && PIECE_COLOR(p) == attacker)
                     return true;
@@ -113,7 +113,7 @@ namespace game {
     analyzer_add_move(const Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row,
                       const int32_t to_col, AvailableSquares &moves, const Color enemy) {
         const auto friendly = chess_piece_other_color(enemy);
-        if (to_row < 0 || to_row >= 8 || to_col < 0 || to_col >= 8)
+        if (to_row < RANK_1 || to_row >= RANK_COUNT || to_col < FILE_A || to_col >= FILE_COUNT)
             return false;
         const auto target = board->pieces[Board::board_get_index(to_row, to_col)];
         Board aux_board = *board;
@@ -142,7 +142,7 @@ namespace game {
         const int32_t dir = (friendly == PIECE_WHITE ? 1 : -1);
         // one-step
         const int32_t r1 = row + dir;
-        if (const int32_t c1 = col; r1 >= 0 && r1 < 8 && PIECE_TYPE(board->pieces[Board::board_get_index(r1, c1)]) ==
+        if (const int32_t c1 = col; r1 >= RANK_1 && r1 < RANK_COUNT && PIECE_TYPE(board->pieces[Board::board_get_index(r1, c1)]) ==
                                     EMPTY) {
             std::ignore = analyzer_add_move(board, row, col, r1, c1, moves, enemy);
             // two-step from home rank
@@ -156,7 +156,7 @@ namespace game {
         for (const int32_t dc: {-1, +1}) {
             const int32_t c2 = col + dc;
             const int32_t r2 = row + dir;
-            if (r2 < 0 || r2 >= 8 || c2 < 0 || c2 >= 8) {
+            if (r2 < RANK_1 || r2 >= RANK_COUNT || c2 < FILE_A || c2 >= FILE_COUNT) {
                 continue;
             }
             if (const auto p = board->pieces[Board::board_get_index(r2, c2)];
@@ -169,7 +169,7 @@ namespace game {
         // No need to check if the target square is empty because en passant captures are only valid
         // if the pawn has just moved two squares forward, which means the target square must be
         // empty at the moment of the en passant capture.
-        if (PIECE_COLOR(piece) == PIECE_WHITE && row == 4) {
+        if (PIECE_COLOR(piece) == PIECE_WHITE && row == RANK_5) {
             // Check for en passant capture to the left
             if (board->board_can_en_passant_this(row, col - 1, enemy)) {
                 std::ignore = analyzer_add_move(board, row, col, row + 1, col - 1, moves, enemy); // Capture to the left
@@ -178,7 +178,7 @@ namespace game {
             if (board->board_can_en_passant_this(row, col + 1, enemy)) {
                 std::ignore = analyzer_add_move(board, row, col, row + 1, col + 1, moves, enemy);
             }
-        } else if (PIECE_COLOR(piece) == PIECE_BLACK && row == 3) {
+        } else if (PIECE_COLOR(piece) == PIECE_BLACK && row == RANK_4) {
             // Check for en passant capture to the left
             if (board->board_can_en_passant_this(row, col - 1, enemy)) {
                 std::ignore = analyzer_add_move(board, row, col, row - 1, col - 1, moves, enemy); // Capture to the left
@@ -198,7 +198,7 @@ namespace game {
         for (auto [dr, dc]: KING_DELTAS) {
             const int32_t r = row + dr;
             const int32_t c = col + dc;
-            if (r < 0 || r >= 8 || c < 0 || c >= 8)
+            if (r < RANK_1 || r >= RANK_COUNT || c < FILE_A || c >= FILE_COUNT)
                 continue;
             std::ignore = analyzer_add_move(board, row, col, r, c, moves, enemy);
         }
@@ -264,7 +264,7 @@ namespace game {
         for (auto [dr, dc]: KNIGHT_DELTAS) {
             const int32_t r = row + dr;
             const int32_t c = col + dc;
-            if (r < 0 || r >= 8 || c < 0 || c >= 8)
+            if (r < RANK_1 || r >= RANK_COUNT || c < FILE_A || c >= FILE_COUNT)
                 continue;
             const auto p = board->pieces[Board::board_get_index(r, c)];
             if (PIECE_TYPE(p) == EMPTY || PIECE_COLOR(p) == enemy)
@@ -305,8 +305,8 @@ namespace game {
     analyzer_is_color_in_check(const Board *board, Color color) {
         int8_t kr = -1;
         int8_t kc = -1;
-        for (int8_t r = 0; r < 8; ++r)
-            for (int8_t c = 0; c < 8; ++c) {
+        for (auto r = 0; r < RANK_COUNT; ++r)
+            for (auto c = 0; c < FILE_COUNT; ++c) {
                 const auto p = board->pieces[Board::board_get_index(r, c)];
                 if (PIECE_TYPE(p) == KING && PIECE_COLOR(p) == color) {
                     kr = r;
@@ -327,7 +327,7 @@ namespace game {
         if (!analyzer_is_color_in_check(board, color)) {
             return false;
         }
-        for (uint8_t i = 0; i < 64; ++i) {
+        for (uint8_t i = 0; i < SQUARE_COUNT; ++i) {
             if (PIECE_COLOR(board->pieces[i]) == color) {
                 const auto [bits, origin] = analyzer_get_available_moves_for_piece(
                     board, Board::board_get_row(i), Board::board_get_col(i));
@@ -363,9 +363,9 @@ namespace game {
         alg.is_capture = (PIECE_TYPE(target) != EMPTY) || alg.en_passant;
 
         if (PIECE_TYPE(moving) == KING) {
-            if (move.from_col == 4 && move.to_col == 6) {
+            if (move.from_col == FILE_D && move.to_col == FILE_G) {
                 alg.kingside_castle = 1; // e1 to g1
-            } else if (move.from_col == 4 && move.to_col == 2) {
+            } else if (move.from_col == FILE_D && move.to_col == FILE_C) {
                 alg.queen_side_castle = 1; // e1 to c1
             }
         }
@@ -376,7 +376,7 @@ namespace game {
         alg.is_check = !alg.is_checkmate && analyzer_is_color_in_check(&board_copy,
                                                                        chess_piece_other_color(PIECE_COLOR(moving)));
 
-        for (int32_t i = 0; i < 64; ++i) {
+        for (int32_t i = 0; i < SQUARE_COUNT; ++i) {
             if (i == fromIdx || moving != board->pieces[i]) {
                 continue; // Skip the moved piece and the target square
             }
@@ -403,11 +403,9 @@ namespace game {
         result.set_origin(static_cast<uint8_t>(Board::board_get_index(move.from_row, move.from_col)));
         result.set_destination(static_cast<uint8_t>(Board::board_get_index(move.to_row, move.to_col)));
         if (board->board_is_en_passant(move.from_row, move.from_col, move.to_row, move.to_col)) {
-            result.set_origin(static_cast<uint8_t>(Board::board_get_index(move.to_row, move.to_col)));
-            result.set_destination(static_cast<uint8_t>(Board::board_get_index(move.from_row, move.to_col)));
             result.set_special(Move::MOVE_EN_PASSANT);
         } else if (PIECE_TYPE(board->pieces[result.get_origin()]) == KING &&
-                   ((move.from_col == 4 && move.to_col == 6) || (move.from_col == 4 && move.to_col == 2))) {
+                   ((move.from_col == FILE_D && move.to_col == FILE_G) || (move.from_col == FILE_D && move.to_col == FILE_C))) {
             result.set_special(Move::MOVE_CASTLE);
         } else if (board->board_pawn_is_being_promoted(move)) {
             result.set_special(Move::MOVE_PROMOTION);
@@ -423,7 +421,7 @@ namespace game {
                    const int32_t disambiguation_col,
                    const int32_t disambiguation_row) {
         Square square{};
-        for (uint8_t i = 0; i < 64; ++i) {
+        for (uint8_t i = 0; i < SQUARE_COUNT; ++i) {
             const auto row = Board::board_get_row(i);
             const auto col = Board::board_get_col(i);
             if (disambiguation_col != -1 && disambiguation_col != col) {
@@ -445,7 +443,7 @@ namespace game {
     int32_t
     analyzer_get_move_count(const Board *board, Color color) {
         int32_t count = 0;
-        for (uint8_t i = 0; i < 64; ++i) {
+        for (uint8_t i = 0; i < SQUARE_COUNT; ++i) {
             if (PIECE_COLOR(board->pieces[i]) == color) {
                 const auto moves = analyzer_get_available_moves_for_piece(
                     board, Board::board_get_row(i), Board::board_get_col(i));
@@ -473,7 +471,7 @@ namespace game {
         std::array white_bsq = {false, false};
         std::array black_bsq = {false, false};
 
-        for (int32_t sq = 0; sq < 64; ++sq) {
+        for (int32_t sq = 0; sq < SQUARE_COUNT; ++sq) {
             const auto p = board->pieces[sq];
             switch (PIECE_TYPE(p)) {
                 case KING:

@@ -26,7 +26,6 @@ namespace game
             DRAW,
             PLAYING
         };
-        
 
         Board board{};
         Player white_player{};
@@ -53,12 +52,19 @@ namespace game
             }
         }
 
-        bool move(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col);
+        inline bool
+        move(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col,
+             PromotionPieceType promotion_type = PROMOTION_QUEEN)
+        {
+            move(analyzer_get_move_from_simple(&board, SimpleMove{static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), 
+                                                static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}, promotion_type));
+        }
+
         bool move(const Move &move);
         bool board_in_check() const;
         void tick();
 
-        const char* get_status_string() const;
-        const char* get_winner_string() const;
+        const char *get_status_string() const;
+        const char *get_winner_string() const;
     };
 }

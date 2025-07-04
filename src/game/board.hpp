@@ -36,7 +36,7 @@ namespace game
 
         void reset()
         {
-            bits = 0;
+            bits = static_cast<BitBoard>(0);
         }
 
         int32_t move_count() const
@@ -47,7 +47,7 @@ namespace game
 
     struct Board
     {
-        std::array<Piece, 64> pieces;
+        std::array<Piece, SQUARE_COUNT> pieces;
         int8_t en_passant_index;
         std::byte castle_rights;
 
@@ -180,12 +180,17 @@ namespace game
             return false;
         }
 
-        Color get_color(const int32_t row,const int32_t col) const
+        Color get_color(int32_t row, int32_t col)
         {
             return PIECE_COLOR(pieces[Board::board_get_index(row, col)]);
         }
 
-        int32_t piece_count(const Color c) const
+        Color get_color(int32_t index)
+        {
+            return PIECE_COLOR(pieces[index]);
+        }
+
+        int32_t piece_count(Color c)
         {
             int32_t result{0};
             for (auto p : pieces)
