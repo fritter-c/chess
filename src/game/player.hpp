@@ -22,7 +22,7 @@ namespace game
         {
             player.color = c;
         }
-        SimpleMove get_move(const Board &b);
+        Move get_move(const Board &b);
     };
 
     struct DrunkMan
@@ -35,7 +35,7 @@ namespace game
         {
             player.color = c;
         };
-        SimpleMove get_move(const Board &b);
+        Move get_move(const Board &b);
     };
 
     using Player = std::variant<Human, DrunkMan>;
@@ -46,7 +46,7 @@ namespace game
         return !std::holds_alternative<Human>(p);
     }
 
-    inline SimpleMove
+    inline Move
     player_get_move(Player &p, const Board &b)
     {
         return std::visit(

@@ -54,10 +54,7 @@ namespace game
         }
 
         bool move(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col);
-        bool move(const SimpleMove &sm)
-        {
-            return move(sm.from_row, sm.from_col, sm.to_row, sm.to_col);
-        }
+        bool move(const Move &move);
         bool board_in_check();
         void tick();
 

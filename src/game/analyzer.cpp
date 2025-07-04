@@ -239,7 +239,7 @@ namespace game
         }
 
         // Kingside castling
-        if (analyzer_is_color_in_check(board, friendly))
+        if (!analyzer_is_color_in_check(board, friendly))
         {
             const uint8_t king_row = friendly ? 7 : 0;
             if (PIECE_TYPE(board->pieces[Board::board_get_index(king_row, 5)]) == NONE &&
@@ -462,6 +462,36 @@ namespace game
         return alg;
     }
 
+    Move
+    analyzer_get_move_from_simple(const Board *board, const SimpleMove &move,
+                                  PromotionPieceType promotion_type)
+    {
+        Move result{};
+        result.set_origin(Board::board_get_index(move.from_row, move.from_col));
+        result.set_destination(Board::board_get_index(move.to_row, move.to_col));
+        if (board->board_is_en_passant(move.from_row, move.from_col, move.to_row, move.to_col))
+        {
+            result.set_origin(Board::board_get_index(move.to_row, move.to_col));
+            result.set_destination(Board::board_get_index(move.from_row, move.to_col));
+            result.set_special(Move::MOVE_EN_PASSANT);
+        }
+        else if (PIECE_TYPE(board->pieces[result.get_origin()]) == KING &&
+                 ((move.from_col == 4 && move.to_col == 6) || (move.from_col == 4 && move.to_col == 2)))
+        {
+            result.set_special(Move::MOVE_CASTLE);
+        }
+        else if (board->board_pawn_is_being_promoted(move))
+        {
+            result.set_special(Move::MOVE_PROMOTION);
+            result.set_promotion_piece(promotion_type);
+        }
+        else
+        {
+            result.set_special(Move::MOVE_NONE);
+        }
+        return result;
+    }
+
     Square
     analyzer_where(const Board *board, const PieceType type, const Color color,
                    const int32_t disambiguation_col,
@@ -513,7 +543,7 @@ namespace game
         return analyzer_get_move_count(board, friendly) == 0 && !analyzer_is_color_in_checkmate(board, friendly);
     }
 
-    static bool 
+    static bool
     square_is_light(int32_t sq)
     {
         // a1 = dark (0,0)->0, (row+col)&1 == 1 => light

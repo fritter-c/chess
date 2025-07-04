@@ -3,7 +3,7 @@
 namespace game
 {
 
-    SimpleMove
+    Move
     Human::get_move(const Board &b)
     {
         return {};
@@ -12,9 +12,12 @@ namespace game
     std::random_device DrunkMan::rd;
     std::mt19937 DrunkMan::gen(DrunkMan::rd());
 
-    SimpleMove
+    Move
     DrunkMan::get_move(const Board &b)
     {
+        static constexpr std::array<PromotionPieceType, 4> promotions_pieces = {
+            PROMOTION_QUEEN, PROMOTION_ROOK, PROMOTION_BISHOP, PROMOTION_KNIGHT};
+
         AvailableSquares moves_per_piece[16];
         int32_t piece_index = 0;
         for (int32_t i = 0; i < 64; i++)
@@ -50,7 +53,13 @@ namespace game
                     move.from_col = Board::board_get_col(moves.origin_index);
                     move.to_col = Board::board_get_col(i);
                     move.to_row = Board::board_get_row(i);
-                    return move;
+                    PromotionPieceType promotion_type = PROMOTION_QUEEN;
+                    if (b.board_pawn_is_being_promoted(move))
+                    {
+                        std::uniform_int_distribution<int32_t> promotion_dist(0, 3);
+                        promotion_type = promotions_pieces[promotion_dist(gen)];
+                    }
+                    return analyzer_get_move_from_simple(&b, move, promotion_type);
                 }
                 move_selected--;
             }

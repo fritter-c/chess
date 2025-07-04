@@ -56,12 +56,10 @@ namespace game
             return pieces[index];
         }
 
-
         const Piece &operator[](int32_t index) const
         {
             return pieces[index];
         }
-
 
         auto begin()
         {
@@ -131,34 +129,10 @@ namespace game
         }
 
         bool
-        board_move(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col);
+        board_move(Move move);
 
         void
         board_move_no_check(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col);
-
-        bool
-        board_move(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col,
-                   AlgebraicMove &out_alg);
-
-        bool
-        board_move(const SimpleMove &move)
-        {
-            return board_move(move.from_row, move.from_col, move.to_row, move.to_col);
-        }
-
-        bool
-        board_move(const AlgebraicMove &move)
-        {
-            return board_move(move.from_row, move.from_col, move.to_row, move.to_col);
-        }
-
-        bool
-        board_promote(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col,
-                      PieceType type = QUEEN);
-
-        bool
-        board_promote(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col,
-                      AlgebraicMove &out_alg, PieceType type = QUEEN);
 
         static bool
         board_valid_rol_col(const int32_t row, const int32_t col)
@@ -223,5 +197,9 @@ namespace game
             }
             return result;
         }
+
+        bool
+        board_is_en_passant(int32_t from_row, int32_t from_col, int32_t to_row,
+                            int32_t to_col) const;
     };
 }

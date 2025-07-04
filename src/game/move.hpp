@@ -31,7 +31,7 @@ namespace game
         uint8_t promotion : 1;
     };
 
-    // Firt 6 bits origin square, next 6 bits destination square
+    // First 6 bits origin square, next 6 bits destination square
     // Them 2 bits for promotion piece type
     // Them 2 bits for flags (en passant, castle, promotion)
     struct Move
@@ -86,6 +86,29 @@ namespace game
         MoveSpecialType get_special() const
         {
             return static_cast<MoveSpecialType>((move >> SPECIAL_SHIFT) & SPECIAL_MASK);
+        }
+
+        PieceType get_promotion_piece_type() const
+        {
+            return get_promotion_piece() == PROMOTION_QUEEN ? QUEEN : get_promotion_piece() == PROMOTION_ROOK ? ROOK
+                                                                  : get_promotion_piece() == PROMOTION_BISHOP ? BISHOP
+                                                                                                              : KNIGHT;
+        }
+        int32_t from_row() const
+        {
+            return get_origin() / 8;
+        }
+        int32_t from_col() const
+        {
+            return get_origin() % 8;
+        }
+        int32_t to_row() const
+        {
+            return get_destination() / 8;
+        }
+        int32_t to_col() const
+        {
+            return get_destination() % 8;
         }
     };
 

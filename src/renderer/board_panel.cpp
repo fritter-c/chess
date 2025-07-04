@@ -9,8 +9,8 @@ namespace renderer
             exit(-1);
         }
 
-        chess_game.set_player(game::PIECE_WHITE, game::DrunkMan{});
-        chess_game.set_player(game::PIECE_BLACK, game::DrunkMan{});
+       chess_game.set_player(game::PIECE_WHITE, game::DrunkMan{});
+      chess_game.set_player(game::PIECE_BLACK, game::DrunkMan{});
     }
 
     void BoardPanel::render()
@@ -29,7 +29,7 @@ namespace renderer
         ImGui::Begin("Controls");
         {
 #if 1
-            ImGui::BeginChild("Debug", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY );
+            ImGui::BeginChild("Debug", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
             const float fps = ImGui::GetIO().Framerate;
             ImGui::Text("Board FPS %.2f", fps);
             game::Piece p = chess_game.board[game::Board::board_get_index(chess_board.row_hovered, chess_board.col_hovered)];
@@ -46,7 +46,7 @@ namespace renderer
 
             ImGui::Text("Move count %lu", chess_game.move_count);
             ImGui::Text("Status %s (%s)", chess_game.get_status_string(), chess_game.get_winner_string());
-            
+
             ImGui::EndChild();
 #endif
             ImGui::BeginChild("Control Buttons", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
