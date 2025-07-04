@@ -19,7 +19,7 @@ namespace game {
     analyzer_is_color_in_check(const Board *board, Color color);
 
     inline bool
-    analyzer_can_move(const Board *board, int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col)
+    analyzer_can_move(const Board *board,const int32_t from_row,const int32_t from_col,const int32_t to_row,const int32_t to_col)
     {
         return analyzer_get_available_moves_for_piece(board, Board::board_get_index(from_row, from_col)).get(Board::board_get_index(to_row, to_col));
     }

@@ -1,15 +1,14 @@
-#pragma once
-#include "imgui_impl_opengl3_loader.h"
 #include <array>
 #include <filesystem>
 #include "imgui.h"
 #include "imgui_extra.hpp"
-#include "../game/piece.hpp"
 #include "../game/board.hpp"
 #include "../third/miniaudio.h"
+
 namespace game {
     struct Game;
 }
+
 namespace renderer {
     struct VisualBoard {
         static constexpr ImVec2 PIECE_SIZE = ImVec2(128.0f, 128.0f);
@@ -25,13 +24,17 @@ namespace renderer {
         int32_t row_hovered{-1};
         int32_t col_hovered{-1};
         game::AvailableSquares available_squares_for_dragging{};
-        
+
         VisualBoard() = default;
-        ~VisualBoard() {cleanup();}
+
+        ~VisualBoard() { cleanup(); }
 
         bool load_textures(const std::filesystem::path &res_path);
+
         void render(game::Game *game, float width, float height);
+
         void cleanup();
+
         inline void flip_board() { flipped = !flipped; }
     };
 }

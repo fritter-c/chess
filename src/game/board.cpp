@@ -1,7 +1,6 @@
 #include "board.hpp"
 #include <cmath>
 #include <cstring>
-#include "analyzer.hpp"
 #include "types.hpp"
 
 namespace game
@@ -26,24 +25,18 @@ namespace game
         const int32_t from_index = Board::board_get_index(from_row, from_col);
         const int32_t to_index = Board::board_get_index(to_row, to_col);
         const Piece from_piece = board->pieces[from_index];
-        if (const Piece to_piece = board->pieces[to_index]; PIECE_TYPE(to_piece) != PieceType::NONE &&
+        if (const Piece to_piece = board->pieces[to_index]; PIECE_TYPE(to_piece) != EMPTY &&
                                                             PIECE_COLOR(to_piece) == PIECE_COLOR(from_piece))
         {
             return false; // Cannot capture own piece
         }
 
-        if (PIECE_TYPE(from_piece) == PieceType::NONE)
+        if (PIECE_TYPE(from_piece) == EMPTY)
         {
             return false; // No piece to move
         }
 
         return true;
-    }
-
-    static bool
-    board_can_move_basic(const Board *board, const SimpleMove &move)
-    {
-        return board_can_move_basic(board, move.from_row, move.from_col, move.to_row, move.to_col);
     }
 
     static bool
@@ -75,7 +68,7 @@ namespace game
     {
         (void)to_row;
         if (const Piece to_piece = pieces[Board::board_get_index(to_row, to_col)];
-            PIECE_TYPE(to_piece) != PieceType::NONE)
+            PIECE_TYPE(to_piece) != PieceType::EMPTY)
         {
             return false;
         }
@@ -107,17 +100,17 @@ namespace game
     {
         board->en_passant_index = -1; // Reset en passant index
         Piece const &from_piece = board->pieces[Board::board_get_index(from_row, from_col)];
-        if (PIECE_TYPE(from_piece) == PieceType::PAWN && std::abs(from_row - to_row) == 2)
+        if (PIECE_TYPE(from_piece) == PAWN && std::abs(from_row - to_row) == 2)
         {
             board->en_passant_index = static_cast<int8_t>(Board::board_get_index(to_row, to_col));
         }
 
-        if (PIECE_TYPE(from_piece) == PieceType::KING)
+        if (PIECE_TYPE(from_piece) == KING)
         {
             board->castle_rights &= PIECE_COLOR(from_piece) ? ~CASTLE_BLACK_ALL : ~CASTLE_WHITE_ALL;
         }
         // Needs to verify the row in case of extra rooks
-        else if (PIECE_TYPE(from_piece) == PieceType::ROOK)
+        else if (PIECE_TYPE(from_piece) == ROOK)
         {
             if (from_col == 0)
             {
@@ -161,10 +154,10 @@ namespace game
     {
         if (board_can_move_basic(this, move.get_origin(), move.get_destination()))
         {
-            int8_t from_row = Board::board_get_row(move.get_origin());
-            int8_t from_col = Board::board_get_col(move.get_origin());
-            int8_t to_row = Board::board_get_row(move.get_destination());
-            int8_t to_col = Board::board_get_col(move.get_destination());
+            const int32_t from_row = board_get_row(move.get_origin());
+            const int32_t from_col = board_get_col(move.get_origin());
+            const int32_t to_row = board_get_row(move.get_destination());
+            const int32_t to_col = board_get_col(move.get_destination());
             if (move.get_special() == Move::MOVE_CASTLE)
             {
                 board_do_castle(this, from_row, from_col, to_row, to_col);
@@ -173,11 +166,11 @@ namespace game
             {
                 if (move.get_special() == Move::MOVE_PROMOTION)
                 {
-                    pieces[Board::board_get_index(to_row, to_col)] = chess_piece_make(
-                        move.get_promotion_piece_type(), PIECE_COLOR(pieces[Board::board_get_index(from_row, from_col)]));
+                    pieces[board_get_index(to_row, to_col)] = chess_piece_make(
+                        move.get_promotion_piece_type(), PIECE_COLOR(pieces[board_get_index(from_row, from_col)]));
 
                     // Remove the pawn from the original position
-                    pieces[Board::board_get_index(from_row, from_col)] = PIECE_NONE;
+                    pieces[board_get_index(from_row, from_col)] = PIECE_NONE;
                 }
             }
             else

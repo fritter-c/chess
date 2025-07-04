@@ -103,7 +103,7 @@ namespace game {
 
     inline bool
     squares_same_diagonal
-    (const SquareIndex a,const SquareIndex b) noexcept {
+    (const SquareIndex a, const SquareIndex b) noexcept {
         return utils::abs(square_file(a) - square_file(b)) == utils::abs(square_rank(a) - square_rank(b));
     }
 
@@ -142,7 +142,6 @@ namespace game {
     };
 
     using BitBoard = uint64_t;
-
 
     struct Square {
         uint8_t row: 4;

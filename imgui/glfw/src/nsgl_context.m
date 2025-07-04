@@ -1,7 +1,7 @@
 //========================================================================
-// GLFW 3.4 macOS - www.glfw.org
+// GLFW 3.2 OS X - www.glfw.org
 //------------------------------------------------------------------------
-// Copyright (c) 2009-2019 Camilla Löwy <elmindreda@glfw.org>
+// Copyright (c) 2009-2016 Camilla Berglund <elmindreda@glfw.org>
 //
 // This software is provided 'as-is', without any express or implied
 // warranty. In no event will the authors be held liable for any damages
@@ -26,76 +26,39 @@
 
 #include "internal.h"
 
-#if defined(_GLFW_COCOA)
 
-#include <unistd.h>
-#include <math.h>
-
-static void makeContextCurrentNSGL(_GLFWwindow* window)
+static void makeContextCurrent(_GLFWwindow* window)
 {
-    @autoreleasepool {
-
     if (window)
         [window->context.nsgl.object makeCurrentContext];
     else
         [NSOpenGLContext clearCurrentContext];
 
-    _glfwPlatformSetTls(&_glfw.contextSlot, window);
-
-    } // autoreleasepool
+    _glfwPlatformSetCurrentContext(window);
 }
 
-static void swapBuffersNSGL(_GLFWwindow* window)
+static void swapBuffers(_GLFWwindow* window)
 {
-    @autoreleasepool {
-
-    // HACK: Simulate vsync with usleep as NSGL swap interval does not apply to
-    //       windows with a non-visible occlusion state
-    if (window->ns.occluded)
-    {
-        int interval = 0;
-        [window->context.nsgl.object getValues:&interval
-                                  forParameter:NSOpenGLContextParameterSwapInterval];
-
-        if (interval > 0)
-        {
-            const double framerate = 60.0;
-            const uint64_t frequency = _glfwPlatformGetTimerFrequency();
-            const uint64_t value = _glfwPlatformGetTimerValue();
-
-            const double elapsed = value / (double) frequency;
-            const double period = 1.0 / framerate;
-            const double delay = period - fmod(elapsed, period);
-
-            usleep(floorl(delay * 1e6));
-        }
-    }
-
+    // ARP appears to be unnecessary, but this is future-proof
     [window->context.nsgl.object flushBuffer];
-
-    } // autoreleasepool
 }
 
-static void swapIntervalNSGL(int interval)
+static void swapInterval(int interval)
 {
-    @autoreleasepool {
+    _GLFWwindow* window = _glfwPlatformGetCurrentContext();
 
-    _GLFWwindow* window = _glfwPlatformGetTls(&_glfw.contextSlot);
-    assert(window != NULL);
-
-    [window->context.nsgl.object setValues:&interval
-                              forParameter:NSOpenGLContextParameterSwapInterval];
-
-    } // autoreleasepool
+    GLint sync = interval;
+    [window->context.nsgl.object setValues:&sync
+                              forParameter:NSOpenGLCPSwapInterval];
 }
 
-static int extensionSupportedNSGL(const char* extension)
+static int extensionSupported(const char* extension)
 {
     // There are no NSGL extensions
     return GLFW_FALSE;
 }
 
-static GLFWglproc getProcAddressNSGL(const char* procname)
+static GLFWglproc getProcAddress(const char* procname)
 {
     CFStringRef symbolName = CFStringCreateWithCString(kCFAllocatorDefault,
                                                        procname,
@@ -109,17 +72,15 @@ static GLFWglproc getProcAddressNSGL(const char* procname)
     return symbol;
 }
 
-static void destroyContextNSGL(_GLFWwindow* window)
+// Destroy the OpenGL context
+//
+static void destroyContext(_GLFWwindow* window)
 {
-    @autoreleasepool {
-
     [window->context.nsgl.pixelFormat release];
     window->context.nsgl.pixelFormat = nil;
 
     [window->context.nsgl.object release];
     window->context.nsgl.object = nil;
-
-    } // autoreleasepool
 }
 
 
@@ -131,9 +92,6 @@ static void destroyContextNSGL(_GLFWwindow* window)
 //
 GLFWbool _glfwInitNSGL(void)
 {
-    if (_glfw.nsgl.framework)
-        return GLFW_TRUE;
-
     _glfw.nsgl.framework =
         CFBundleGetBundleWithIdentifier(CFSTR("com.apple.opengl"));
     if (_glfw.nsgl.framework == NULL)
@@ -158,81 +116,70 @@ GLFWbool _glfwCreateContextNSGL(_GLFWwindow* window,
                                 const _GLFWctxconfig* ctxconfig,
                                 const _GLFWfbconfig* fbconfig)
 {
+    unsigned int attributeCount = 0;
+
     if (ctxconfig->client == GLFW_OPENGL_ES_API)
     {
         _glfwInputError(GLFW_API_UNAVAILABLE,
-                        "NSGL: OpenGL ES is not available via NSGL");
+                        "NSGL: OpenGL ES is not available on OS X");
+        return GLFW_FALSE;
+    }
+
+    if (ctxconfig->major == 3 && ctxconfig->minor < 2)
+    {
+        _glfwInputError(GLFW_VERSION_UNAVAILABLE,
+                        "NSGL: The targeted version of OS X does not support OpenGL 3.0 or 3.1");
         return GLFW_FALSE;
     }
 
     if (ctxconfig->major > 2)
     {
-        if (ctxconfig->major == 3 && ctxconfig->minor < 2)
+        if (!ctxconfig->forward)
         {
             _glfwInputError(GLFW_VERSION_UNAVAILABLE,
-                            "NSGL: The targeted version of macOS does not support OpenGL 3.0 or 3.1 but may support 3.2 and above");
+                            "NSGL: The targeted version of OS X only supports forward-compatible contexts for OpenGL 3.2 and above");
+            return GLFW_FALSE;
+        }
+
+        if (ctxconfig->profile != GLFW_OPENGL_CORE_PROFILE)
+        {
+            _glfwInputError(GLFW_VERSION_UNAVAILABLE,
+                            "NSGL: The targeted version of OS X only supports core profile contexts for OpenGL 3.2 and above");
             return GLFW_FALSE;
         }
     }
 
-    if (ctxconfig->major >= 3 && ctxconfig->profile == GLFW_OPENGL_COMPAT_PROFILE)
-    {
-        _glfwInputError(GLFW_VERSION_UNAVAILABLE,
-                        "NSGL: The compatibility profile is not available on macOS");
-        return GLFW_FALSE;
-    }
-
-    // Context robustness modes (GL_KHR_robustness) are not yet supported by
-    // macOS but are not a hard constraint, so ignore and continue
+    // Context robustness modes (GL_KHR_robustness) are not yet supported on
+    // OS X but are not a hard constraint, so ignore and continue
 
     // Context release behaviors (GL_KHR_context_flush_control) are not yet
-    // supported by macOS but are not a hard constraint, so ignore and continue
+    // supported on OS X but are not a hard constraint, so ignore and continue
 
-    // Debug contexts (GL_KHR_debug) are not yet supported by macOS but are not
-    // a hard constraint, so ignore and continue
+#define ADD_ATTR(x) { attributes[attributeCount++] = x; }
+#define ADD_ATTR2(x, y) { ADD_ATTR(x); ADD_ATTR(y); }
 
-    // No-error contexts (GL_KHR_no_error) are not yet supported by macOS but
-    // are not a hard constraint, so ignore and continue
+    // Arbitrary array size here
+    NSOpenGLPixelFormatAttribute attributes[40];
 
-#define ADD_ATTRIB(a) \
-{ \
-    assert((size_t) index < sizeof(attribs) / sizeof(attribs[0])); \
-    attribs[index++] = a; \
-}
-#define SET_ATTRIB(a, v) { ADD_ATTRIB(a); ADD_ATTRIB(v); }
-
-    NSOpenGLPixelFormatAttribute attribs[40];
-    int index = 0;
-
-    ADD_ATTRIB(NSOpenGLPFAAccelerated);
-    ADD_ATTRIB(NSOpenGLPFAClosestPolicy);
-
-    if (ctxconfig->nsgl.offline)
-    {
-        ADD_ATTRIB(NSOpenGLPFAAllowOfflineRenderers);
-        // NOTE: This replaces the NSSupportsAutomaticGraphicsSwitching key in
-        //       Info.plist for unbundled applications
-        // HACK: This assumes that NSOpenGLPixelFormat will remain
-        //       a straightforward wrapper of its CGL counterpart
-        ADD_ATTRIB(kCGLPFASupportsAutomaticGraphicsSwitching);
-    }
+    ADD_ATTR(NSOpenGLPFAAccelerated);
+    ADD_ATTR(NSOpenGLPFAClosestPolicy);
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= 101000
     if (ctxconfig->major >= 4)
     {
-        SET_ATTRIB(NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion4_1Core);
+        ADD_ATTR2(NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion4_1Core);
     }
     else
 #endif /*MAC_OS_X_VERSION_MAX_ALLOWED*/
     if (ctxconfig->major >= 3)
     {
-        SET_ATTRIB(NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core);
+        ADD_ATTR2(NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core);
     }
 
     if (ctxconfig->major <= 2)
     {
         if (fbconfig->auxBuffers != GLFW_DONT_CARE)
-            SET_ATTRIB(NSOpenGLPFAAuxBuffers, fbconfig->auxBuffers);
+            ADD_ATTR2(NSOpenGLPFAAuxBuffers, fbconfig->auxBuffers);
 
         if (fbconfig->accumRedBits != GLFW_DONT_CARE &&
             fbconfig->accumGreenBits != GLFW_DONT_CARE &&
@@ -244,7 +191,7 @@ GLFWbool _glfwCreateContextNSGL(_GLFWwindow* window,
                                   fbconfig->accumBlueBits +
                                   fbconfig->accumAlphaBits;
 
-            SET_ATTRIB(NSOpenGLPFAAccumSize, accumBits);
+            ADD_ATTR2(NSOpenGLPFAAccumSize, accumBits);
         }
     }
 
@@ -256,61 +203,53 @@ GLFWbool _glfwCreateContextNSGL(_GLFWwindow* window,
                         fbconfig->greenBits +
                         fbconfig->blueBits;
 
-        // macOS needs non-zero color size, so set reasonable values
+        // OS X needs non-zero color size, so set reasonable values
         if (colorBits == 0)
             colorBits = 24;
         else if (colorBits < 15)
             colorBits = 15;
 
-        SET_ATTRIB(NSOpenGLPFAColorSize, colorBits);
+        ADD_ATTR2(NSOpenGLPFAColorSize, colorBits);
     }
 
     if (fbconfig->alphaBits != GLFW_DONT_CARE)
-        SET_ATTRIB(NSOpenGLPFAAlphaSize, fbconfig->alphaBits);
+        ADD_ATTR2(NSOpenGLPFAAlphaSize, fbconfig->alphaBits);
 
     if (fbconfig->depthBits != GLFW_DONT_CARE)
-        SET_ATTRIB(NSOpenGLPFADepthSize, fbconfig->depthBits);
+        ADD_ATTR2(NSOpenGLPFADepthSize, fbconfig->depthBits);
 
     if (fbconfig->stencilBits != GLFW_DONT_CARE)
-        SET_ATTRIB(NSOpenGLPFAStencilSize, fbconfig->stencilBits);
+        ADD_ATTR2(NSOpenGLPFAStencilSize, fbconfig->stencilBits);
 
     if (fbconfig->stereo)
-    {
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 101200
-        _glfwInputError(GLFW_FORMAT_UNAVAILABLE,
-                        "NSGL: Stereo rendering is deprecated");
-        return GLFW_FALSE;
-#else
-        ADD_ATTRIB(NSOpenGLPFAStereo);
-#endif
-    }
+        ADD_ATTR(NSOpenGLPFAStereo);
 
     if (fbconfig->doublebuffer)
-        ADD_ATTRIB(NSOpenGLPFADoubleBuffer);
+        ADD_ATTR(NSOpenGLPFADoubleBuffer);
 
     if (fbconfig->samples != GLFW_DONT_CARE)
     {
         if (fbconfig->samples == 0)
         {
-            SET_ATTRIB(NSOpenGLPFASampleBuffers, 0);
+            ADD_ATTR2(NSOpenGLPFASampleBuffers, 0);
         }
         else
         {
-            SET_ATTRIB(NSOpenGLPFASampleBuffers, 1);
-            SET_ATTRIB(NSOpenGLPFASamples, fbconfig->samples);
+            ADD_ATTR2(NSOpenGLPFASampleBuffers, 1);
+            ADD_ATTR2(NSOpenGLPFASamples, fbconfig->samples);
         }
     }
 
     // NOTE: All NSOpenGLPixelFormats on the relevant cards support sRGB
     //       framebuffer, so there's no need (and no way) to request it
 
-    ADD_ATTRIB(0);
+    ADD_ATTR(0);
 
-#undef ADD_ATTRIB
-#undef SET_ATTRIB
+#undef ADD_ATTR
+#undef ADD_ATTR2
 
     window->context.nsgl.pixelFormat =
-        [[NSOpenGLPixelFormat alloc] initWithAttributes:attribs];
+        [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
     if (window->context.nsgl.pixelFormat == nil)
     {
         _glfwInputError(GLFW_FORMAT_UNAVAILABLE,
@@ -318,7 +257,7 @@ GLFWbool _glfwCreateContextNSGL(_GLFWwindow* window,
         return GLFW_FALSE;
     }
 
-    NSOpenGLContext* share = nil;
+    NSOpenGLContext* share = NULL;
 
     if (ctxconfig->share)
         share = ctxconfig->share->context.nsgl.object;
@@ -333,23 +272,14 @@ GLFWbool _glfwCreateContextNSGL(_GLFWwindow* window,
         return GLFW_FALSE;
     }
 
-    if (fbconfig->transparent)
-    {
-        GLint opaque = 0;
-        [window->context.nsgl.object setValues:&opaque
-                                  forParameter:NSOpenGLContextParameterSurfaceOpacity];
-    }
-
-    [window->ns.view setWantsBestResolutionOpenGLSurface:window->ns.scaleFramebuffer];
-
     [window->context.nsgl.object setView:window->ns.view];
 
-    window->context.makeCurrent = makeContextCurrentNSGL;
-    window->context.swapBuffers = swapBuffersNSGL;
-    window->context.swapInterval = swapIntervalNSGL;
-    window->context.extensionSupported = extensionSupportedNSGL;
-    window->context.getProcAddress = getProcAddressNSGL;
-    window->context.destroy = destroyContextNSGL;
+    window->context.makeCurrent = makeContextCurrent;
+    window->context.swapBuffers = swapBuffers;
+    window->context.swapInterval = swapInterval;
+    window->context.extensionSupported = extensionSupported;
+    window->context.getProcAddress = getProcAddress;
+    window->context.destroy = destroyContext;
 
     return GLFW_TRUE;
 }
@@ -364,21 +294,12 @@ GLFWAPI id glfwGetNSGLContext(GLFWwindow* handle)
     _GLFWwindow* window = (_GLFWwindow*) handle;
     _GLFW_REQUIRE_INIT_OR_RETURN(nil);
 
-    if (_glfw.platform.platformID != GLFW_PLATFORM_COCOA)
-    {
-        _glfwInputError(GLFW_PLATFORM_UNAVAILABLE,
-                        "NSGL: Platform not initialized");
-        return nil;
-    }
-
-    if (window->context.source != GLFW_NATIVE_CONTEXT_API)
+    if (window->context.client == GLFW_NO_API)
     {
         _glfwInputError(GLFW_NO_WINDOW_CONTEXT, NULL);
-        return nil;
+        return NULL;
     }
 
     return window->context.nsgl.object;
 }
-
-#endif // _GLFW_COCOA
 

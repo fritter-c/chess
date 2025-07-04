@@ -15,7 +15,7 @@ namespace game
             WHITE_STALEMATE,
             BLACK_STALEMATE,
             INSUFFICIENT_MATERIAL,
-            NONE
+            INVALID
         };
 
         // Updated every game tick
@@ -24,22 +24,22 @@ namespace game
             WHITE,
             BLACK,
             DRAW,
-            NONE
+            PLAYING
         };
         
 
-        Board board;
-        Player white_player;
-        Player black_player;
+        Board board{};
+        Player white_player{};
+        Player black_player{};
         Color turn{PIECE_WHITE};
         GameStatus status{GameStatus::WHITE_TURN};
-        GameWinner winner{GameWinner::NONE};
+        GameWinner winner{GameWinner::PLAYING};
         uint64_t move_count{0};
 
         Game();
 
         template <typename T>
-        void set_player(Color c, T player)
+        void set_player(const Color c, T player)
         {
             if (c == PIECE_WHITE)
             {
@@ -55,7 +55,7 @@ namespace game
 
         bool move(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col);
         bool move(const Move &move);
-        bool board_in_check();
+        bool board_in_check() const;
         void tick();
 
         const char* get_status_string() const;

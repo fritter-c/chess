@@ -5,7 +5,7 @@ namespace game
 {
     enum PieceType : uint8_t
     {
-        NONE,
+        EMPTY,
         PAWN,
         KNIGHT,
         BISHOP,
@@ -66,7 +66,6 @@ namespace game
         default:
             return "Empty Square";
         }
-        return "Empty Square";
     }
 
     enum Color : int8_t
@@ -110,7 +109,7 @@ namespace game
     chess_piece_to_algebraic_letter(const PieceType type)
     {
         constexpr static char ALGEBRAIC_TABLE[] = {'N', 'B', 'R', 'Q', 'K'};
-        if (type == PAWN || type == NONE)
+        if (type == PAWN || type == EMPTY)
         {
             return ' ';
         }

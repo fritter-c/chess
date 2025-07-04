@@ -7,7 +7,6 @@ file(GLOB IMGUI_SOURCES
 )
 
 add_library(imgui STATIC ${IMGUI_SOURCES})
-
 if (MSVC)
     target_compile_options(imgui PRIVATE $<$<CONFIG:RelWithDebInfo>:/O2>
             $<$<CONFIG:Release>:/O2>

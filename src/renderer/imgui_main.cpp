@@ -1,9 +1,12 @@
+#include <iostream>
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "main_window.hpp"
+#define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 
+#define VSYNC_HINT 1
 
 namespace renderer {
     enum FrameAction {
@@ -25,10 +28,9 @@ namespace renderer {
         if (!glfwInit())
             return 1;
 
-
-        const char *glsl_version = "#version 130";
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+        const char *glsl_version = "#version 430 core";
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
 
         // Create window with graphics context
@@ -39,7 +41,7 @@ namespace renderer {
         if (*window == nullptr)
             return 1;
         glfwMakeContextCurrent(*window);
-        glfwSwapInterval(1); // Enable vsync
+        glfwSwapInterval(VSYNC_HINT); // Enable vsync
 
         // Setup Dear ImGui context
         IMGUI_CHECKVERSION();
@@ -59,6 +61,7 @@ namespace renderer {
 
         if (!ImGui_ImplGlfw_InitForOpenGL(*window, true) || !ImGui_ImplOpenGL3_Init(glsl_version))
             return 2;
+
         return 0;
     }
 
@@ -85,6 +88,7 @@ namespace renderer {
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
+
             return FRAME_CONTINUE;
         }
         return FRAME_EXIT;
@@ -123,6 +127,7 @@ namespace renderer {
             }
 
             main_win.render();
+
             frame_end(window);
         }
 

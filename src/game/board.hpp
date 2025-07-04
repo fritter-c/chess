@@ -85,7 +85,7 @@ namespace game
             int32_t count = 0;
             for (const auto &piece : pieces)
             {
-                if (PIECE_TYPE(piece) != NONE && PIECE_COLOR(piece) == color)
+                if (PIECE_TYPE(piece) != EMPTY && PIECE_COLOR(piece) == color)
                 {
                     ++count;
                 }
@@ -180,12 +180,12 @@ namespace game
             return false;
         }
 
-        Color get_color(int32_t row, int32_t col)
+        Color get_color(const int32_t row,const int32_t col) const
         {
             return PIECE_COLOR(pieces[Board::board_get_index(row, col)]);
         }
 
-        int32_t piece_count(Color c)
+        int32_t piece_count(const Color c) const
         {
             int32_t result{0};
             for (auto p : pieces)

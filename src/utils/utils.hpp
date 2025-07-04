@@ -50,4 +50,5 @@ namespace utils {
     constexpr T abs(T value) {
         return (value < 0) ? -value : value;
     }
+
 }

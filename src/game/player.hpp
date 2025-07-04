@@ -18,7 +18,7 @@ namespace game
     {
         PlayerStatus player;
 
-        void init(Color c)
+        void init(const Color c)
         {
             player.color = c;
         }
@@ -31,7 +31,7 @@ namespace game
         static std::random_device rd;
         static std::mt19937 gen;
 
-        void init(Color c)
+        void init(const Color c)
         {
             player.color = c;
         };
@@ -41,7 +41,7 @@ namespace game
     using Player = std::variant<Human, DrunkMan>;
 
     inline bool
-    player_is_ai(Player &p)
+    player_is_ai(const Player &p)
     {
         return !std::holds_alternative<Human>(p);
     }
