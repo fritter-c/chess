@@ -146,6 +146,26 @@ namespace game {
 
  
     using BitBoard = uint64_t;
+
+    constexpr void 
+    bitboard_set(BitBoard& bit, Rank r, File f) noexcept {
+        bit |= static_cast<BitBoard>(1) << (static_cast<uint8_t>(r) * 8 + static_cast<uint8_t>(f));
+    }
+
+    constexpr void 
+    bitboard_clear(BitBoard& bit, Rank r, File f) noexcept {
+        bit &= ~(static_cast<BitBoard>(1) << (static_cast<uint8_t>(r) * 8 + static_cast<uint8_t>(f)));
+    }
+
+    constexpr bool 
+    bitboard_get(const BitBoard& bit, Rank r, File f) noexcept {
+        return (bit & (static_cast<BitBoard>(1) << (static_cast<uint8_t>(r) * 8 + static_cast<uint8_t>(f)))) != 0;
+    }
+
+    constexpr int32_t
+    bitboard_count(const BitBoard& bit) noexcept {
+        return static_cast<int32_t>(std::popcount(bit));
+    }
     
     struct Square {
         uint8_t row: 4;
