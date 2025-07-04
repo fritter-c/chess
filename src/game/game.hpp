@@ -1,6 +1,7 @@
 #pragma once
 #include "board.hpp"
 #include "player.hpp"
+#include "analyzer.hpp"
 namespace game
 {
     struct Game
@@ -56,8 +57,8 @@ namespace game
         move(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col,
              PromotionPieceType promotion_type = PROMOTION_QUEEN)
         {
-            move(analyzer_get_move_from_simple(&board, SimpleMove{static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), 
-                                                static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}, promotion_type));
+            return move(analyzer_get_move_from_simple(&board, SimpleMove{static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), 
+                                                       static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}, promotion_type));
         }
 
         bool move(const Move &move);
