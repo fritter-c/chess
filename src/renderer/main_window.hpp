@@ -2,10 +2,10 @@
 #include "board_panel.hpp"
 namespace renderer {
 
-    struct MainWindow {
-        BoardPanel board_panel;
+struct MainWindow {
+    BoardPanel board_panel;
 
-        MainWindow();
-        void render();
-    };
-}
+    MainWindow();
+    void render();
+};
+} // namespace renderer

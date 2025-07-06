@@ -1,6 +1,6 @@
 #pragma once
+#include <bit>
 #include "piece.hpp"
-#include <cstdlib>
 #include <cstdint>
 #include <utility>
 #include <array>
@@ -20,7 +20,7 @@ namespace game {
         SQUARE_COUNT
     };
 
-       enum File : uint8_t {
+    enum File : uint8_t {
         FILE_A,
         FILE_B,
         FILE_C,
@@ -45,9 +45,8 @@ namespace game {
     };
 
 
-
-    using RankArray = std::array<Piece, static_cast<std::size_t>(FILE_COUNT)>;
-    using BoardArray = std::array<RankArray, static_cast<std::size_t>(RANK_COUNT)>;
+    using RankArray = std::array<Piece, static_cast<std::size_t>(std::to_underlying(FILE_COUNT))>;
+    using BoardArray = std::array<RankArray, static_cast<std::size_t>(std::to_underlying(RANK_COUNT))>;
 
     static constexpr BoardArray StartingPosition{
         {
@@ -102,8 +101,8 @@ namespace game {
         }
     };
 
-    using NameRank = std::array<const char *, static_cast<std::size_t>(File::FILE_COUNT)>;
-    using NameArray = std::array<NameRank, static_cast<std::size_t>(Rank::RANK_COUNT)>;
+    using NameRank = std::array<const char *, static_cast<std::size_t>(std::to_underlying(FILE_COUNT))>;
+    using NameArray = std::array<NameRank, static_cast<std::size_t>(std::to_underlying(RANK_COUNT))>;
 
     static constexpr NameArray CellNames{
         {
@@ -135,38 +134,59 @@ namespace game {
     }
 
     constexpr bool
-    squares_same_main_diagonal(SquareIndex a, SquareIndex b) noexcept {
+    squares_same_main_diagonal(const SquareIndex a, const SquareIndex b) noexcept {
         return square_file(a) - square_rank(a) == square_file(b) - square_rank(b);
     }
 
     constexpr bool
-    squares_same_anti_diagonal(SquareIndex a, SquareIndex b) noexcept {
+    squares_same_anti_diagonal(const SquareIndex a, const SquareIndex b) noexcept {
         return square_file(a) + square_rank(a) == square_file(b) + square_rank(b);
     }
 
- 
+
     using BitBoard = uint64_t;
 
-    constexpr void 
-    bitboard_set(BitBoard& bit, Rank r, File f) noexcept {
-        bit |= static_cast<BitBoard>(1) << (static_cast<uint8_t>(r) * 8 + static_cast<uint8_t>(f));
+    constexpr void
+    bitboard_set(BitBoard &bit, const uint32_t r, const uint32_t f) noexcept {
+        bit |= static_cast<BitBoard>(1) << (r * 8 + f);
     }
 
-    constexpr void 
-    bitboard_clear(BitBoard& bit, Rank r, File f) noexcept {
-        bit &= ~(static_cast<BitBoard>(1) << (static_cast<uint8_t>(r) * 8 + static_cast<uint8_t>(f)));
+    constexpr void
+    bitboard_set(BitBoard &bit, const uint32_t sq) noexcept {
+        bit |= static_cast<BitBoard>(1) << sq;
     }
 
-    constexpr bool 
-    bitboard_get(const BitBoard& bit, Rank r, File f) noexcept {
-        return (bit & (static_cast<BitBoard>(1) << (static_cast<uint8_t>(r) * 8 + static_cast<uint8_t>(f)))) != 0;
+    constexpr void
+    bitboard_clear(BitBoard &bit, const uint32_t r, const uint32_t f) noexcept {
+        bit &= ~(static_cast<BitBoard>(1) << (r * 8 + f));
+    }
+
+    constexpr void
+    bitboard_clear(BitBoard &bit, const uint32_t sq) noexcept {
+        bit &= ~(static_cast<BitBoard>(1) << sq);
+    }
+
+    constexpr bool
+    bitboard_get(const BitBoard &bit, const uint32_t r, const uint32_t f) noexcept {
+        return (bit & static_cast<BitBoard>(1) << (r * 8 + f)) != 0;
     }
 
     constexpr int32_t
-    bitboard_count(const BitBoard& bit) noexcept {
-        return static_cast<int32_t>(std::popcount(bit));
+    bitboard_count(const BitBoard &bit) noexcept {
+        return std::popcount(bit);
     }
-    
+
+    struct AvailableMoves {
+        BitBoard bits;
+        int32_t origin_index;
+        void set(const int32_t row, const int32_t col) { bitboard_set(bits, row, col); }
+        void clear(const int32_t row, const int32_t col) { bitboard_clear(bits, row, col); }
+        bool get(const int32_t row, const int32_t col) const { return bitboard_get(bits, row, col); }
+        bool get(const int32_t index) const { return get(index / 8, index % 8); }
+        void reset() { bits = static_cast<BitBoard>(0); }
+        int32_t move_count() const { return bitboard_count(bits); }
+    };
+
     struct Square {
         uint8_t row: 4;
         uint8_t col: 4;

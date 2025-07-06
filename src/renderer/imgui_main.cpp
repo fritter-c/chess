@@ -3,10 +3,11 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "main_window.hpp"
+#include "visual_board.hpp"
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 
-#define VSYNC_HINT 1
+constexpr auto VSYNC_HINT{1}; // 1 for vsync, 0 for no vsync
 
 namespace renderer {
     enum FrameAction {
@@ -116,6 +117,13 @@ namespace renderer {
             return 1;
         }
 
+
+        if (!load_board_resources(std::filesystem::current_path().parent_path().parent_path() / "res")) {
+            imgui_shutdown(window);
+            std::cerr << "Failed to load resources." << std::endl;
+            return 2;
+        }
+
         MainWindow main_win;
         while (true) {
             const FrameAction frame_action = frame_begin(window);
@@ -131,6 +139,7 @@ namespace renderer {
             frame_end(window);
         }
 
+        release_board_resources();
         imgui_shutdown(window);
         return 0;
     }

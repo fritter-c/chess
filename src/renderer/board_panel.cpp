@@ -1,78 +1,133 @@
 #include "board_panel.hpp"
-#include "../game/player.hpp"
 #include "../game/analyzer.hpp"
+#include "../game/player.hpp"
 
-namespace renderer
-{
-    BoardPanel::BoardPanel()
-    {
-        if (!chess_board.load_textures(std::filesystem::current_path().parent_path().parent_path() / "res"))
-        {
-            exit(-1);
+namespace renderer {
+static void get_move_with_icon(const game::AlgebraicMove &move, gtr::string &before, gtr::string &icon, gtr::string &after) {
+
+    auto contains_piece = [](const char piece) {
+        static constexpr char piece_map[] = {'N', 'B', 'R', 'Q', 'K'};
+        for (const auto piece_char : piece_map) {
+            if (piece_char == piece) {
+                return true;
+            }
         }
-
-        //    chess_game.set_player(game::PIECE_WHITE, game::DrunkMan{});
-        // chess_game.set_player(game::PIECE_BLACK, game::DrunkMan{});
-    }
-
-    void BoardPanel::render()
-    {
-        ImGui::SetNextWindowSize(ImVec2(1080, 1080), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Chess Board");
-        {
-            ImGui::BeginChild("Chess Board");
-            const float width = ImGui::GetWindowWidth();
-            const float height = ImGui::GetWindowHeight();
-            chess_board.render(&chess_game, width, height);
-            chess_game.tick();
-            ImGui::EndChild();
+        return false;
+    };
+    gtr::string *write_buffer = &before;
+    for (const auto piece : move) {
+        if (contains_piece(piece)) {
+            icon.push_back(piece);
+            write_buffer = &after;
+        } else {
+            write_buffer->push_back(piece);
         }
-        ImGui::End();
-        ImGui::Begin("Controls");
-        {
-
-            ImGui::BeginChild("Debug", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
-            const float fps = ImGui::GetIO().Framerate;
-            ImGui::Text("Board FPS %.2f", fps);
-            if (chess_board.row_hovered >= 0 && chess_board.col_hovered >= 0)
-            {
-                game::Piece p = chess_game.board[game::Board::board_get_index(
-                    chess_board.row_hovered, chess_board.col_hovered)];
-                ImGui::Text("Rank (%d) File (%d) Piece (%s)", chess_board.row_hovered, chess_board.col_hovered,
-                            game::piece_to_string(p));
-            }
-            else
-            {
-                ImGui::Text("Rank (%d) File (%d) Piece (None)", chess_board.row_hovered, chess_board.col_hovered);
-            }
-            if (chess_board.dragging_piece_index >= 0)
-            {
-                game::Piece dragging = chess_game.board[chess_board.dragging_piece_index];
-                ImGui::Text("Dragging %s (%d)", game::piece_to_string(dragging),
-                            chess_board.available_squares_for_dragging.move_count());
-            }
-            else
-            {
-                ImGui::Text("Dragging None");
-            }
-
-            ImGui::Text("Move count %lu", chess_game.move_count);
-            ImGui::Text("Status %s (%s)", chess_game.get_status_string(), chess_game.get_winner_string());
-            ImGui::Text("Available moves %d", game::analyzer_get_move_count(&chess_game.board, chess_game.turn));
-
-            ImGui::EndChild();
-            ImGui::BeginChild("Control Buttons", ImVec2(0, 0), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
-            if (ImGui::Button("Reset Game"))
-            {
-                // TODO
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Flip Board"))
-            {
-                chess_board.flip_board();
-            }
-            ImGui::EndChild();
-        }
-        ImGui::End();
     }
 }
+
+static void write_move_with_icon(const game::AlgebraicMove &move) {
+    gtr::string before;
+    gtr::string after;
+    gtr::string icon;
+    get_move_with_icon(move, before, icon, after);
+    if (!before.empty()) {
+        ImGui::Text("%s", before.c_str());
+        ImGui::SameLine();
+        if (!icon.empty()) {
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() - 7.0f);
+        }
+    }
+    if (!icon.empty()) {
+        ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
+        ImGui::Text("%s", icon.c_str());
+        ImGui::SameLine();
+        ImGui::PopFont();
+        // Align the icon better with normal font
+        if (!after.empty()) {
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() - 7.0f);
+            ImGui::Text("%s", after.c_str());
+        }
+    }
+}
+void BoardPanel::render() {
+    ImGui::SetNextWindowSize(ImVec2(1080, 1080), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Chess Board");
+    {
+        ImGui::BeginChild("Chess Board");
+        const float width = ImGui::GetWindowWidth();
+        const float height = ImGui::GetWindowHeight();
+        chess_board.render(&chess_game, width, height);
+        chess_game.tick();
+        ImGui::EndChild();
+    }
+    ImGui::End();
+    ImGui::Begin("Controls");
+    {
+
+        ImGui::BeginChild("Debug", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY);
+        const float fps = ImGui::GetIO().Framerate;
+        ImGui::Text("Board FPS %.2f", fps);
+        if (chess_board.row_hovered >= 0 && chess_board.col_hovered >= 0) {
+            const game::Piece p = chess_game.board[game::Board::get_index(chess_board.row_hovered, chess_board.col_hovered)];
+            ImGui::Text("Rank (%d) File (%d) Piece (%s)", chess_board.row_hovered, chess_board.col_hovered, game::piece_to_string(p));
+        } else {
+            ImGui::Text("Rank (%d) File (%d) Piece (None)", chess_board.row_hovered, chess_board.col_hovered);
+        }
+        if (chess_board.dragging_piece_index >= 0) {
+            const game::Piece dragging = chess_game.board[chess_board.dragging_piece_index];
+            ImGui::Text("Dragging %s (%d)", game::piece_to_string(dragging), chess_board.available_squares_for_dragging.move_count());
+        } else {
+            ImGui::Text("Dragging None");
+        }
+
+        ImGui::Text("Move count %lu", chess_game.move_count);
+        ImGui::Text("Status %s (%s)", chess_game.get_status_string(), chess_game.get_winner_string());
+        ImGui::Text("Available moves %d", game::analyzer_get_move_count(&chess_game.board, chess_game.turn));
+
+        ImGui::EndChild();
+        ImGui::BeginChild("Control Buttons", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY);
+        if (ImGui::Button("Reset Game")) {
+            chess_game.reset();
+            chess_board.move_list.clear();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Flip Board")) {
+            chess_board.flip_board();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Undo Move")) {
+            chess_game.undo_last_move();
+            if (!chess_board.move_list.empty()) {
+                chess_board.move_list.pop_back();
+            }
+        }
+        ImGui::EndChild();
+
+        ImGui::BeginChild("Move List", ImVec2(0, 0));
+        static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
+                                       ImGuiTableFlags_SizingFixedFit;
+        if (ImGui::BeginTable("Moves", 3, flags)) {
+            ImGui::TableSetupColumn("Count", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoHeaderLabel);
+            ImGui::TableSetupColumn("White", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Black", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableHeadersRow();
+            for (auto i = 0; i < chess_board.move_list.size(); i += 2) {
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text("%d.", (i / 2) + 1);
+                ImGui::TableNextColumn();
+                write_move_with_icon(chess_board.move_list[i]);
+                ImGui::TableNextColumn();
+                if (i + 1 < chess_board.move_list.size()) {
+                    write_move_with_icon(chess_board.move_list[i + 1]);
+                }
+            }
+            ImGui::EndTable();
+        }
+        ImGui::EndChild();
+    }
+    ImGui::End();
+}
+
+} // namespace renderer
