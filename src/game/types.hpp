@@ -176,6 +176,13 @@ namespace game {
         return std::popcount(bit);
     }
     
+    template<uint32_t... Squares>
+    constexpr BitBoard bitboard_from_squares() noexcept {
+        BitBoard bit = 0;
+        ((bit |= static_cast<BitBoard>(1) << Squares), ...);
+        return bit;
+    }
+    
     enum BitBoardDirection : int8_t{
         BLACK_DIRECTION = 8,
         WHITE_DIRECTION = -BLACK_DIRECTION,
@@ -186,6 +193,8 @@ namespace game {
         WHITE_RIGHT_DIRECTION = WHITE_DIRECTION + RIGHT_DIRECTION,
         WHITE_LEFT_DIRECTION = WHITE_DIRECTION + LEFT_DIRECTION
     };
+
+
 
     struct AvailableMoves {
         BitBoard bits;

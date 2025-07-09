@@ -65,9 +65,8 @@ static void board_do_castle(Board *board, const int32_t from_row, const int32_t 
 }
 
 static bool on_corner(const int32_t row, const int32_t col) {
-    static constexpr std::array corners = {Board::get_index(0, 0), Board::get_index(0, 7), Board::get_index(7, 0), Board::get_index(7, 7)};
-    auto index = Board::get_index(row, col);
-    return index == corners[0] || index == corners[1] || index == corners[2] || index == corners[3];
+    static constexpr BitBoard corner_bitboard = bitboard_from_squares<A1, H1, A8, H8>();
+    return bitboard_get(corner_bitboard, row, col);
 }
 
 static void board_undo_castle(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row, const int32_t to_col) {
@@ -84,7 +83,7 @@ static void board_undo_castle(Board *board, const int32_t from_row, const int32_
 
 static void update_rights(BoardState &state, Piece piece, const int32_t piece_row, const int32_t piece_col) {
     static constexpr std::array all_rights{~CASTLE_WHITE_ALL, ~CASTLE_BLACK_ALL};
-    static constexpr std::byte side_rights[2][2]{{~CASTLE_WHITE_QUEENSIDE, ~CASTLE_BLACK_QUEENSIDE}, {~CASTLE_WHITE_KINGSIDE, ~CASTLE_BLACK_KINGSIDE}};
+    static constexpr std::byte side_rights[2][2]{{~CASTLE_WHITE_KINGSIDE, ~CASTLE_BLACK_KINGSIDE}, {~CASTLE_WHITE_QUEENSIDE, ~CASTLE_BLACK_QUEENSIDE}};
     switch (PIECE_TYPE(piece)) {
     case KING: state.castle_rights &= all_rights[PIECE_COLOR(piece)]; break;
     case ROOK:
