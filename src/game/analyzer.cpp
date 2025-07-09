@@ -97,26 +97,29 @@ static bool analyzer_add_move(Board *board, const int32_t from_row, const int32_
     if (to_row < RANK_1 || to_row >= RANK_COUNT || to_col < FILE_A || to_col >= FILE_COUNT)
         return false;
     const auto target = board->pieces[Board::get_index(to_row, to_col)];
-    if (PIECE_TYPE(target) == EMPTY && board->move(analyzer_get_move_from_simple(
-                                           board, {static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}))) {
+    BoardState state{};
+    if (PIECE_TYPE(target) == EMPTY && board->move_stateless(analyzer_get_move_from_simple(board, {static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col),
+                                                                                                   static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}),
+                                                             state)) {
         if (!analyzer_is_color_in_check(board, friendly)) {
             moves.set(to_row, to_col);
         }
-        board->undo_last_move();
+        board->undo_stateless(state);
         return true; // Is not blocked can continue to try to add new moves
     }
     if (PIECE_COLOR(target) != enemy) {
         return false;
     }
 
-    if (board->move(
-            analyzer_get_move_from_simple(board, {static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}))) {
+    if (board->move_stateless(
+            analyzer_get_move_from_simple(board, {static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}),
+            state)) {
         if (!analyzer_is_color_in_check(board, friendly)) {
             moves.set(to_row, to_col);
-            board->undo_last_move();
+            board->undo_stateless(state);
             return true;
         }
-        board->undo_last_move();
+        board->undo_stateless(state);
     }
     return false;
 }
@@ -352,7 +355,6 @@ bool analyzer_is_insufficient_material(const Board *board) {
     int32_t black_minors = 0;
     std::array white_bsq = {false, false};
     std::array black_bsq = {false, false};
-
     for (int32_t sq = 0; sq < SQUARE_COUNT; ++sq) {
         const auto p = board->pieces[sq];
         switch (PIECE_TYPE(p)) {
@@ -404,11 +406,12 @@ bool analyzer_is_insufficient_material(const Board *board) {
 bool analyzer_move_puts_to_check(Board *board, const Move &move) {
     const auto friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
     bool result = false;
-    if (analyzer_is_move_legal(board, move) && board->move(move)) {
+    BoardState state{};
+    if (analyzer_is_move_legal(board, move) && board->move_stateless(move, state)) {
         if (analyzer_is_color_in_check(board, ~friendly)) {
             result = true;
         }
-        board->undo_last_move();
+        board->undo_stateless(state);
     }
     return result;
 }
@@ -416,16 +419,15 @@ bool analyzer_move_puts_to_check(Board *board, const Move &move) {
 bool analyzer_move_puts_to_checkmate(Board *board, const Move &move) {
     const auto friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
     bool result = false;
-    if (analyzer_is_move_legal(board, move) && board->move(move)) {
+    BoardState state{};
+    if (analyzer_is_move_legal(board, move) && board->move_stateless(move, state)) {
         if (analyzer_is_color_in_checkmate(board, ~friendly)) {
             result = true;
         }
-        board->undo_last_move();
+        board->undo_stateless(state);
     }
     return result;
 }
 
-bool analyzer_is_move_legal(Board *board, const Move &move) {
-    return analyzer_can_move(board, move.from_row(), move.from_col(), move.to_row(), move.to_col());
-}
+bool analyzer_is_move_legal(Board *board, const Move &move) { return analyzer_can_move(board, move.from_row(), move.from_col(), move.to_row(), move.to_col()); }
 } // namespace game

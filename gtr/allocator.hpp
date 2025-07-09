@@ -9,8 +9,11 @@ template <typename T> struct c_allocator {
     using value_type = T;
     using pointer_type = T *;
     using size_type = uint64_t;
-    using propagate_on_container_move_assignment = std::true_type;
+    using propagate_on_container_move_assignment = std::false_type; // Does not manage state, so no need to propagate
+    using propagate_on_container_copy_assignment = std::false_type; // Does not manage state, so no need to propagate
+    using propagate_on_container_swap = std::false_type;            // Does not manage state, so no need to propagate
     using difference_type = std::ptrdiff_t;
+    using is_always_equal = std::true_type; // Stateless allocator, always equal
     constexpr c_allocator select_on_container_copy_construction() const noexcept { return *this; }
     T *allocate(size_type n) { return malloc(n); }
     void deallocate(T *p,const size_type n) { return free(p, n); }

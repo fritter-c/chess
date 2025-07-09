@@ -1,15 +1,15 @@
 #ifndef GTRSTRING_H
 #define GTRSTRING_H
+#include <algorithm>
 #include <bit>
 #include <cctype>
-#include <cstring>
 #include <cerrno>
 #include <climits>
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
 #include <emmintrin.h>
 #include "allocator.hpp"
-#include <algorithm>
 #include "assert.hpp"
 #include "container_base.hpp"
 #ifdef _MSC_VER
@@ -380,7 +380,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      *
      * @param str The text object to initialize the text object with.
      */
-    constexpr char_string(const char_string &str) : container_base<Allocator>(str.allocator()) {
+    constexpr char_string(const char_string &str) : container_base<Allocator>(std::allocator_traits<Allocator>::select_on_container_copy_construction(str.allocator())) {
         std::memset(data, 0, N);
         reserve(str.size());
         value_type *data_ptr = local_data() ? data : get_pointer();
@@ -399,11 +399,19 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      *
      * @param str The text object to move from.
      */
-    char_string(char_string &&str) noexcept {
+    char_string(char_string &&str) noexcept(std::allocator_traits<Allocator>::is_always_equal::value ||
+                                            std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value)
+        : container_base<Allocator>((std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<Allocator>::is_always_equal::value)
+                                        ? std::move(str.allocator())
+                                        : Allocator{}) {
         using traits = std::allocator_traits<Allocator>;
         if (this != &str) {
-            std::memcpy(data, str.data, N);
-            std::memset(str.data, 0, N);
+            if constexpr (traits::propagate_on_container_move_assignment::value || traits::is_always_equal::value) {
+                std::memcpy(data, str.data, N);
+                std::memset(str.data, 0, N);
+            } else {
+                append(str.c_str());
+            }
         }
     }
 
@@ -419,6 +427,14 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     char_string &operator=(const char_string &str) {
         if (this != &str) {
+
+            using ATraits = std::allocator_traits<Allocator>;
+            using Base = container_base<Allocator>;
+
+            if constexpr (ATraits::propagate_on_container_copy_assignment::value) {
+                static_cast<Base &>(*this) = str;
+            }
+
             if (!local_data()) {
                 allocator().free(get_pointer(), capacity() + 1);
             }
@@ -478,12 +494,17 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     char_string &operator=(char_string &&str) noexcept {
         if (this != &str) {
-            if (!local_data()) {
+            if constexpr (std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<Allocator>::is_always_equal::value) {
+                allocator() = std::move(str.allocator());
+                // This is a move
+                std::memcpy(data, str.data, N);
+                std::memset(str.data, 0, N);
+            } else {
                 allocator().free(get_pointer(), capacity() + 1);
+                std::memset(data, 0, N); // unsets the heap flag
+                // If the allocator is not propagate let the destructor free the old data
+                append(str.c_str());
             }
-            // This is a move if the data is on the heap for src or a copy if it's local
-            std::memcpy(data, str.data, N);
-            std::memset(str.data, 0, N);
         }
         return *this;
     }

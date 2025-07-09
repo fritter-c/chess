@@ -4,6 +4,7 @@ namespace game {
 Game::Game() {
     board.init();
     board.populate();
+    push_move(AlgebraicMove{""});
 }
 
 static Player &game_get_player(Game *g, Color c) { return c == PIECE_WHITE ? g->white_player : g->black_player; }
@@ -51,15 +52,40 @@ bool Game::move(const Move &move) {
     return false;
 }
 
-bool Game::undo_last_move() {
-    if (board.undo_last_move()) {
+bool Game::redo() {
+
+    if (board.redo()) {
         turn = ~turn;
         game_update_status(this);
-        pop_move();
+        redo_move();
+        ++move_count;
+        return true;
+    }
+    return false;
+}
+
+bool Game::undo() {
+    if (board.undo()) {
+        turn = ~turn;
+        game_update_status(this);
+        undo_move();
         --move_count;
         return true;
     }
     return false;
+}
+
+bool Game::random_move() {
+    DrunkMan player{turn};
+    return move(player_get_move(player, board));
+}
+
+void Game::return_last_move() {
+    while (redo()) {};
+}
+
+void Game::return_first_move() {
+    while (undo()) {};
 }
 
 bool Game::board_in_check() { return analyzer_is_color_in_check(&board, PIECE_WHITE) || analyzer_is_color_in_check(&board, PIECE_BLACK); }
@@ -92,6 +118,7 @@ void Game::reset() {
     winner = GameWinner::PLAYING;
     move_count = 0;
     move_list.clear();
+    push_move(AlgebraicMove{""});
 }
 
 const char *Game::get_status_string() const {
@@ -106,7 +133,6 @@ const char *Game::get_status_string() const {
     case INSUFFICIENT_MATERIAL: return "Insufficient material";
     default                   : return "Unknown game status";
     }
-
 }
 
 const char *Game::get_winner_string() const {

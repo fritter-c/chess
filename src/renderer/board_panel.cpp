@@ -31,12 +31,13 @@ static void write_move_with_icon(const game::AlgebraicMove &move) {
     gtr::string after;
     gtr::string icon;
     get_move_with_icon(move, before, icon, after);
+    constexpr float icon_shift = 7.0f;
     if (!before.empty()) {
         ImGui::Text("%s", before.c_str());
         ImGui::SameLine();
         // Align the icon better with normal font
         if (!icon.empty()) {
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() - 7.0f);
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() - icon_shift);
         }
     }
     if (!icon.empty()) {
@@ -46,7 +47,7 @@ static void write_move_with_icon(const game::AlgebraicMove &move) {
         ImGui::PopFont();
         // Align the icon better with normal font
         if (!after.empty()) {
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() - 7.0f);
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() - icon_shift);
             ImGui::Text("%s", after.c_str());
         }
     }
@@ -91,32 +92,61 @@ void BoardPanel::render() {
 
         ImGui::Text("Move count %lu", chess_game.move_count);
         ImGui::Text("Status %s (%s)", chess_game.get_status_string(), chess_game.get_winner_string());
-        ImGui::Text("Available moves %d", game::analyzer_get_move_count(&chess_game.board, chess_game.turn));
+        // ImGui::Text("Available moves %d", game::analyzer_get_move_count(&chess_game.board, chess_game.turn));
 
         ImGui::EndChild();
         ImGui::BeginChild("Control Buttons", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY);
-        if (ImGui::Button("Reset Game")) {
-            chess_game.reset();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Flip Board")) {
+
+        if (ImGui::Button("Flip")) {
             chess_board.flip_board();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Undo Move")) {
-            chess_game.undo_last_move();
+        if (ImGui::Button("<<")) {
+            chess_game.return_first_move();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("<")) {
+            chess_game.undo();
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button(">")) {
+            if (!chess_game.redo()){
+                chess_game.random_move();
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(">>")) {
+            chess_game.return_last_move();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Debug")) {
+            debug_chess_board = !debug_chess_board;
+        }
+        if (debug_chess_board) {
+            ImGui::Checkbox("View as plain string", &debug_plain_string);
+            if (debug_plain_string) {
+                ImGui::TextUnformatted(chess_game.board.board_to_string().c_str());
+            } else {
+                constexpr float piece_font_size = 30.0f;
+                ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0], piece_font_size);
+                ImGui::TextUnformatted(chess_game.board.board_to_string().c_str());
+                ImGui::PopFont();
+            }
         }
         ImGui::EndChild();
 
         ImGui::BeginChild("Move List", ImVec2(0, 0));
         static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
                                        ImGuiTableFlags_SizingFixedFit;
-        if (ImGui::BeginTable("Moves", 3, flags)) {
+        constexpr int32_t column_count = 3;
+        if (ImGui::BeginTable("Moves", column_count, flags)) {
             ImGui::TableSetupColumn("Count", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoHeaderLabel);
             ImGui::TableSetupColumn("White", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("Black", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableHeadersRow();
-            for (auto i = 0; i < chess_game.move_list.size(); i += 2) {
+
+            for (auto i = 1; i <= chess_game.move_list.read_index; i += 2) {
 
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
@@ -124,19 +154,18 @@ void BoardPanel::render() {
                 ImGui::TableNextColumn();
                 write_move_with_icon(chess_game.move_list[i]);
                 ImGui::TableNextColumn();
-                if (i + 1 < chess_game.move_list.size()) {
+                if (i + 1 <= chess_game.move_list.read_index) {
                     write_move_with_icon(chess_game.move_list[i + 1]);
                 }
             }
+
             ImGui::EndTable();
         }
         ImGui::EndChild();
     }
     ImGui::End();
 
-    if (debug_chess_board) {
-
-    }
+    if (debug_chess_board) {}
 }
 
 } // namespace renderer

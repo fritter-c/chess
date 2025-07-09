@@ -22,6 +22,10 @@ Move DrunkMan::get_move(Board &b) {
         }
     }
 
+    if (piece_index < 1) {
+        // No available moves 
+        return {};
+    }
     std::uniform_int_distribution piece_dist(0, piece_index - 1);
     const int32_t piece_selected = piece_dist(gen);
     const AvailableMoves &moves = moves_per_piece[piece_selected];

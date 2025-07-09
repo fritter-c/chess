@@ -62,6 +62,8 @@ template <typename T, uint64_t N = 0> struct history {
     }
 
     void clear() { size = read_index = 0; }
+
+    bool empty() const { return size == 0; }
 };
 
 template <class T> struct history<T, 0> {
@@ -123,5 +125,10 @@ template <class T> struct history<T, 0> {
         data.resize(0);
         read_index = 0;
     }
+
+    bool empty() const {
+        return data.empty();
+    }
+
 };
 } // namespace game

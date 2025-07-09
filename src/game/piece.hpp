@@ -58,22 +58,16 @@ inline const char *piece_to_string(Piece p) {
     }
 }
 
-inline const char *piece_to_string_short(Piece p) {
-    switch (p) {
-    case WHITE_PAWN  : return "WP";
-    case WHITE_KNIGHT: return "WN";
-    case WHITE_BISHOP: return "WB";
-    case WHITE_ROOK  : return "WR";
-    case WHITE_QUEEN : return "WQ";
-    case WHITE_KING  : return "WK";
-    case BLACK_PAWN  : return "BP";
-    case BLACK_KNIGHT: return "BN";
-    case BLACK_BISHOP: return "BB";
-    case BLACK_ROOK  : return "BR";
-    case BLACK_QUEEN : return "BQ";
-    case BLACK_KING  : return "BK";
-    default          : return "CC";
-    }
+#define PIECE_TYPE(PIECE) static_cast<game::PieceType>(PIECE & 7)
+#define PIECE_COLOR(PIECE) static_cast<game::Color>(PIECE >> 3)
+#define IS_WHITE(PIECE) PIECE_COLOR(PIECE) == game::PIECE_WHITE
+#define IS_BLACK(PIECE) PIECE_COLOR(PIECE) == game::PIECE_BLACK
+#define IS_PAWN(PIECE) PIECE_TYPE(PIECE) == game::PAWN
+
+inline char piece_to_string_short(Piece p) {
+
+    static constexpr char piece_font_table[2][7] = {{'z', 'O', 'M', 'V', 'T', 'W', 'L'}, {'z', 'P', 'N', 'B', 'R', 'Q', 'K'}};
+    return piece_font_table[IS_BLACK(p)][PIECE_TYPE(p)];
 }
 
 enum PromotionPieceType : uint8_t { PROMOTION_QUEEN = 0, PROMOTION_ROOK, PROMOTION_BISHOP, PROMOTION_KNIGHT };
@@ -82,9 +76,5 @@ constexpr Piece promotion_piece_type_to_piece(const PromotionPieceType type, con
     return chess_piece_make(static_cast<PieceType>(std::to_underlying(QUEEN) - std::to_underlying(type)), color);
 }
 
-#define PIECE_TYPE(PIECE) static_cast<game::PieceType>(PIECE & 7)
-#define PIECE_COLOR(PIECE) static_cast<game::Color>(PIECE >> 3)
-#define IS_WHITE(PIECE) PIECE_COLOR(PIECE) == game::PIECE_WHITE
-#define IS_BLACK(PIECE) PIECE_COLOR(PIECE) == game::PIECE_BLACK
-#define IS_PAWN(PIECE) PIECE_TYPE(PIECE) == game::PAWN
+
 } // namespace game

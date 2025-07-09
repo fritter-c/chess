@@ -17,8 +17,8 @@ struct BoardState {
 
 struct Board {
     std::array<Piece, SQUARE_COUNT> pieces{};
-    std::array<BitBoard, PIECE_COUNT_PLUS_ANY> pieces_by_type{};//not used yet
-    std::array<BitBoard, COLOR_COUNT> pieces_by_color{}; // not used yet;
+    std::array<BitBoard, PIECE_COUNT_PLUS_ANY> pieces_by_type{}; // not used yet
+    std::array<BitBoard, COLOR_COUNT> pieces_by_color{};         // not used yet;
     history<BoardState> state_history;
 
     Board() { init(); }
@@ -36,6 +36,7 @@ struct Board {
     auto end() { return pieces.end(); }
 
     void init() {
+        state_history.clear();
         state_history.push({});
         current_state().castle_rights = CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE;
         current_state().en_passant_index = -1;
@@ -72,19 +73,12 @@ struct Board {
     }
 
     bool move(Move m);
+    bool move(Move m, AlgebraicMove &out_alg);
+    bool move_stateless(Move m, BoardState &state);
 
-    bool move(Move m, AlgebraicMove& out_alg);
-
-    bool undo_move(Move move);
-
-    bool undo_last_move() {
-        if (current_state().last_move != Move()) {
-            return undo_move(current_state().last_move);
-        }
-        return false;
-    }
-
-    void move_no_check(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col);
+    bool undo();
+    bool undo_stateless(BoardState &state);      
+    bool redo();
 
     static constexpr bool valid_rol_col(const int32_t row, const int32_t col) { return row >= RANK_1 && row <= RANK_7 && col >= FILE_A && col <= FILE_H; }
 
@@ -131,6 +125,6 @@ struct Board {
 
     bool is_en_passant(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col) const;
 
-    gtr::char_string<256> board_to_string() const;
+    gtr::char_string<128> board_to_string() const;
 };
 } // namespace game

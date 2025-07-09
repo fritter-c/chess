@@ -8,6 +8,7 @@ struct BoardPanel {
     VisualBoard chess_board{};
     game::Game chess_game{};
     bool debug_chess_board{false};
+    bool debug_plain_string{false};
     void render();
     BoardPanel();
 };

@@ -175,6 +175,17 @@ namespace game {
     bitboard_count(const BitBoard &bit) noexcept {
         return std::popcount(bit);
     }
+    
+    enum BitBoardDirection : int8_t{
+        BLACK_DIRECTION = 8,
+        WHITE_DIRECTION = -BLACK_DIRECTION,
+        RIGHT_DIRECTION = 1,
+        LEFT_DIRECTION = -RIGHT_DIRECTION,
+        BLACK_RIGHT_DIRECTION = BLACK_DIRECTION + RIGHT_DIRECTION,
+        BLACK_LEFT_DIRECTION = BLACK_DIRECTION + LEFT_DIRECTION,
+        WHITE_RIGHT_DIRECTION = WHITE_DIRECTION + RIGHT_DIRECTION,
+        WHITE_LEFT_DIRECTION = WHITE_DIRECTION + LEFT_DIRECTION
+    };
 
     struct AvailableMoves {
         BitBoard bits;

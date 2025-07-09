@@ -1,6 +1,7 @@
 #pragma once
 #include "analyzer.hpp"
 #include "board.hpp"
+#include "history.hpp"
 #include "player.hpp"
 
 namespace game {
@@ -18,7 +19,7 @@ struct Game {
     GameStatus status{GameStatus::WHITE_TURN};
     GameWinner winner{GameWinner::PLAYING};
     uint64_t move_count{0};
-    gtr::vector<AlgebraicMove> move_list{};
+    history<AlgebraicMove> move_list{};
 
     Game();
 
@@ -37,9 +38,12 @@ struct Game {
             &board, SimpleMove{static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}, promotion_type));
     }
 
+    bool random_move();
     bool move(const Move &move);
-
-    bool undo_last_move();
+    bool undo();
+    bool redo();
+    void return_last_move();
+    void return_first_move();
 
     bool board_in_check();
 
@@ -51,7 +55,9 @@ struct Game {
 
     const char *get_winner_string() const;
 
-    void push_move(const game::AlgebraicMove &move) { move_list.push_back(move); }
-    void pop_move() { move_list.pop_back(); }
+    void push_move(const game::AlgebraicMove &move) { move_list.push(move); }
+    void pop_move() { move_list.pop(); }
+    void undo_move() { move_list.undo(); }
+    void redo_move() { move_list.redo(); }
 };
 } // namespace game
