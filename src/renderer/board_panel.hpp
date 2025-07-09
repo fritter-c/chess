@@ -5,9 +5,10 @@
 #include <string.hpp>
 namespace renderer {
 struct BoardPanel {
-    constexpr static int32_t ControlPanelWidth = 350;
     VisualBoard chess_board{};
     game::Game chess_game{};
+    bool debug_chess_board{false};
     void render();
+    BoardPanel();
 };
 } // namespace renderer

@@ -18,6 +18,7 @@ struct Game {
     GameStatus status{GameStatus::WHITE_TURN};
     GameWinner winner{GameWinner::PLAYING};
     uint64_t move_count{0};
+    gtr::vector<AlgebraicMove> move_list{};
 
     Game();
 
@@ -38,8 +39,6 @@ struct Game {
 
     bool move(const Move &move);
 
-    bool move(Move m, AlgebraicMove &out_alg);
-
     bool undo_last_move();
 
     bool board_in_check();
@@ -51,5 +50,8 @@ struct Game {
     const char *get_status_string() const;
 
     const char *get_winner_string() const;
+
+    void push_move(const game::AlgebraicMove &move) { move_list.push_back(move); }
+    void pop_move() { move_list.pop_back(); }
 };
 } // namespace game

@@ -4,6 +4,7 @@
 #include <memory>
 #include "allocator.hpp"
 #include "assert.hpp"
+#include <cstring>
 #include "container_base.hpp"
 
 namespace gtr {

@@ -2,12 +2,14 @@
 #define GTRSTRING_H
 #include <bit>
 #include <cctype>
+#include <cstring>
 #include <cerrno>
 #include <climits>
 #include <cstdarg>
 #include <cstdio>
 #include <emmintrin.h>
 #include "allocator.hpp"
+#include <algorithm>
 #include "assert.hpp"
 #include "container_base.hpp"
 #ifdef _MSC_VER
@@ -50,7 +52,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
     static constexpr size_type npos = static_cast<size_type>(-1);
 
     static_assert(N > 3 * sizeof(uint64_t), "Text N must be bigger 3 * sizeof(uint64_t)");
-    static_assert((N % 16) == 0, "Buffer size N must be a multiple of 16 for safe SIMD loads.");
+    static_assert(N % 16 == 0, "Buffer size N must be a multiple of 16 for safe SIMD loads.");
 
   private:
     alignas(c_allocator<char>::pointer_type) char data[N]{}; // Either a local buffer or [0] pointer, [1] size, [2] capacity and the last byte the heap flag
@@ -398,6 +400,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      * @param str The text object to move from.
      */
     char_string(char_string &&str) noexcept {
+        using traits = std::allocator_traits<Allocator>;
         if (this != &str) {
             std::memcpy(data, str.data, N);
             std::memset(str.data, 0, N);

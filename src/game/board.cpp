@@ -125,7 +125,7 @@ bool Board::move(const Move move) {
         const int32_t from_col = get_col(move.get_origin());
         const int32_t to_row = get_row(move.get_destination());
         const int32_t to_col = get_col(move.get_destination());
-        history.push(current_state());
+        state_history.push(current_state());
         current_state().last_move = move;
         if (move.get_special() == Move::MOVE_CASTLE) {
             board_do_castle(this, from_row, from_col, to_row, to_col);
@@ -170,7 +170,7 @@ bool Board::undo_move(const Move move) {
             }
 
         }
-        history.undo();
+        state_history.undo();
 
         return true;
     }

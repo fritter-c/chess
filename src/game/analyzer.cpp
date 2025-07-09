@@ -9,7 +9,7 @@ namespace game {
 // Offsets for knight jumps:
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KNIGHT_DELTAS = {{{+2, +1}, {+2, -1}, {-2, +1}, {-2, -1}, {+1, +2}, {+1, -2}, {-1, +2}, {-1, -2}}};
 
-// Offsets for king moves (also used for pawn attack deltas and sliders increment):
+// Offsets for king moves (also used for pawn attack deltas and sliders' increment):
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KING_DELTAS = {{{+1, 0}, {-1, 0}, {0, +1}, {0, -1}, {+1, +1}, {+1, -1}, {-1, +1}, {-1, -1}}};
 
 static bool analyzer_is_pawn_attacking(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
@@ -393,16 +393,16 @@ bool analyzer_is_insufficient_material(const Board *board) {
     if (total_minors == 1)
         return true;
 
-    // K+B vs K+B  (we treat any two-bishop endgame as insufficient)
+    // K+B vs. K+B (we treat any two-bishop endgame as insufficient)
     if (total_minors == 2 && white_minors == 1 && black_minors == 1)
         return true;
 
-    // everything else (e.g. two knights, knight+bishop vs king, >2 minors…) is “sufficient”
+    // everything else (e,g. two knights, knight+bishop vs. king, >2 minors…) is “sufficient”
     return false;
 }
 
 bool analyzer_move_puts_to_check(Board *board, const Move &move) {
-    const Color friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
+    const auto friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
     bool result = false;
     if (analyzer_is_move_legal(board, move) && board->move(move)) {
         if (analyzer_is_color_in_check(board, ~friendly)) {
@@ -414,7 +414,7 @@ bool analyzer_move_puts_to_check(Board *board, const Move &move) {
 }
 
 bool analyzer_move_puts_to_checkmate(Board *board, const Move &move) {
-    const Color friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
+    const auto friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
     bool result = false;
     if (analyzer_is_move_legal(board, move) && board->move(move)) {
         if (analyzer_is_color_in_checkmate(board, ~friendly)) {

@@ -23,13 +23,12 @@ struct VisualBoard {
     game::AvailableMoves available_squares_for_dragging{};
     bool waiting_promotion{false};
     game::SimpleMove promotion_move{};
-    gtr::vector<game::AlgebraicMove> move_list{};
+
 
     void render(game::Game *game, float width, float height);
     void flip_board() { flipped = !flipped; }
 
-    void push_move(const game::AlgebraicMove &move) { move_list.push_back(move); }
-    void pop_move() { move_list.pop_back(); }
+
 };
 
 GLuint get_piece_texture(game::Piece piece);

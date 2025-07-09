@@ -131,9 +131,8 @@ static void resize(VisualBoard *board, const float width, const float height) {
     }
 }
 
-static void do_move(game::Game *game, VisualBoard *board, const game::Move move) {
-    if (game::AlgebraicMove alg_move; game->move(move, alg_move)) {
-        board->push_move(alg_move);
+static void do_move(game::Game *game, const game::Move move) {
+    if (game->move(move)) {
         if (game->board_in_check()) {
             play_check_sound();
         } else {
@@ -149,7 +148,7 @@ static void visual_board_piece_move(VisualBoard *board, game::Game *game, const 
         board->waiting_promotion = true;
         return;
     }
-    do_move(game, board, game::analyzer_get_move_from_simple(&game->board, {from_row, from_col, to_row, to_col}, promotion_type));
+    do_move(game, game::analyzer_get_move_from_simple(&game->board, {from_row, from_col, to_row, to_col}, promotion_type));
 }
 
 static void render_promotion_modal(game::Game *game, VisualBoard *board) {
@@ -167,10 +166,9 @@ static void render_promotion_modal(game::Game *game, VisualBoard *board) {
             if (ImGui::ImageButton(promotion_names[i], get_piece_texture(game::promotion_piece_type_to_piece(static_cast<game::PromotionPieceType>(i), c)),
                                    ImVec2(128.0f, 128.0f))) {
                 board->waiting_promotion = false;
-                do_move(game, board,
-                        game::analyzer_get_move_from_simple(
-                            &game->board, {board->promotion_move.from_row, board->promotion_move.from_col, board->promotion_move.to_row, board->promotion_move.to_col},
-                            static_cast<game::PromotionPieceType>(i)));
+                do_move(game, game::analyzer_get_move_from_simple(
+                                  &game->board, {board->promotion_move.from_row, board->promotion_move.from_col, board->promotion_move.to_row, board->promotion_move.to_col},
+                                  static_cast<game::PromotionPieceType>(i)));
             }
         }
         ImGui::EndPopup();

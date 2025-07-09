@@ -39,25 +39,12 @@ bool Game::move(const Move &move) {
         return false;
     }
 
+    AlgebraicMove algebraic_move;
     const Color moving_color = board.get_color(move.from_row(), move.from_col());
-    if (moving_color == turn && analyzer_can_move(&board, move.from_row(), move.from_col(), move.to_row(), move.to_col()) && board.move(move)) {
+    if (moving_color == turn && analyzer_can_move(&board, move.from_row(), move.from_col(), move.to_row(), move.to_col()) && board.move(move, algebraic_move)) {
         turn = ~turn;
         game_update_status(this);
-        ++move_count;
-        return true;
-    }
-    return false;
-}
-
-bool Game::move(const Move m, AlgebraicMove& out_alg) {
-    if (!game_is_playable(this)) {
-        return false;
-    }
-
-    const Color moving_color = board.get_color(m.from_row(), m.from_col());
-    if (moving_color == turn && analyzer_can_move(&board, m.from_row(), m.from_col(), m.to_row(), m.to_col()) && board.move(m, out_alg)) {
-        turn = ~turn;
-        game_update_status(this);
+        push_move(algebraic_move);
         ++move_count;
         return true;
     }
@@ -68,6 +55,7 @@ bool Game::undo_last_move() {
     if (board.undo_last_move()) {
         turn = ~turn;
         game_update_status(this);
+        pop_move();
         --move_count;
         return true;
     }
@@ -95,7 +83,16 @@ void Game::tick() {
     }
 }
 
-void Game::reset() { *this = Game(); }
+void Game::reset() {
+    board = Board{};
+    board.init();
+    board.populate();
+    turn = PIECE_WHITE;
+    status = GameStatus::WHITE_TURN;
+    winner = GameWinner::PLAYING;
+    move_count = 0;
+    move_list.clear();
+}
 
 const char *Game::get_status_string() const {
     using enum GameStatus;
@@ -109,6 +106,7 @@ const char *Game::get_status_string() const {
     case INSUFFICIENT_MATERIAL: return "Insufficient material";
     default                   : return "Unknown game status";
     }
+
 }
 
 const char *Game::get_winner_string() const {

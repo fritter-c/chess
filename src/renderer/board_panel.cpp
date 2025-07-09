@@ -3,6 +3,7 @@
 #include "../game/player.hpp"
 
 namespace renderer {
+// Until I have a better font I have to split the output and change fonts back and forth
 static void get_move_with_icon(const game::AlgebraicMove &move, gtr::string &before, gtr::string &icon, gtr::string &after) {
 
     auto contains_piece = [](const char piece) {
@@ -33,6 +34,7 @@ static void write_move_with_icon(const game::AlgebraicMove &move) {
     if (!before.empty()) {
         ImGui::Text("%s", before.c_str());
         ImGui::SameLine();
+        // Align the icon better with normal font
         if (!icon.empty()) {
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() - 7.0f);
         }
@@ -48,6 +50,13 @@ static void write_move_with_icon(const game::AlgebraicMove &move) {
             ImGui::Text("%s", after.c_str());
         }
     }
+}
+
+BoardPanel::BoardPanel() {
+#if 0
+    chess_game.set_player(game::PIECE_WHITE, game::DrunkMan{});
+    chess_game.set_player(game::PIECE_BLACK, game::DrunkMan{});
+#endif
 }
 void BoardPanel::render() {
     ImGui::SetNextWindowSize(ImVec2(1080, 1080), ImGuiCond_FirstUseEver);
@@ -88,7 +97,6 @@ void BoardPanel::render() {
         ImGui::BeginChild("Control Buttons", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY);
         if (ImGui::Button("Reset Game")) {
             chess_game.reset();
-            chess_board.move_list.clear();
         }
         ImGui::SameLine();
         if (ImGui::Button("Flip Board")) {
@@ -97,9 +105,6 @@ void BoardPanel::render() {
         ImGui::SameLine();
         if (ImGui::Button("Undo Move")) {
             chess_game.undo_last_move();
-            if (!chess_board.move_list.empty()) {
-                chess_board.move_list.pop_back();
-            }
         }
         ImGui::EndChild();
 
@@ -111,16 +116,16 @@ void BoardPanel::render() {
             ImGui::TableSetupColumn("White", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("Black", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableHeadersRow();
-            for (auto i = 0; i < chess_board.move_list.size(); i += 2) {
+            for (auto i = 0; i < chess_game.move_list.size(); i += 2) {
 
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::Text("%d.", (i / 2) + 1);
                 ImGui::TableNextColumn();
-                write_move_with_icon(chess_board.move_list[i]);
+                write_move_with_icon(chess_game.move_list[i]);
                 ImGui::TableNextColumn();
-                if (i + 1 < chess_board.move_list.size()) {
-                    write_move_with_icon(chess_board.move_list[i + 1]);
+                if (i + 1 < chess_game.move_list.size()) {
+                    write_move_with_icon(chess_game.move_list[i + 1]);
                 }
             }
             ImGui::EndTable();
@@ -128,6 +133,10 @@ void BoardPanel::render() {
         ImGui::EndChild();
     }
     ImGui::End();
+
+    if (debug_chess_board) {
+
+    }
 }
 
 } // namespace renderer

@@ -1,7 +1,6 @@
 #pragma once
 #include <array>
 #include <cstdint>
-#include <cstring>
 #include "history.hpp"
 #include "move.hpp"
 #include "piece.hpp"
@@ -18,15 +17,15 @@ struct BoardState {
 
 struct Board {
     std::array<Piece, SQUARE_COUNT> pieces{};
-    std::array<BitBoard, PIECE_COUNT_PLUS_ANY> pieces_by_type{};
-    std::array<BitBoard, COLOR_COUNT> pieces_by_color{};
-    history<BoardState> history;
+    std::array<BitBoard, PIECE_COUNT_PLUS_ANY> pieces_by_type{};//not used yet
+    std::array<BitBoard, COLOR_COUNT> pieces_by_color{}; // not used yet;
+    history<BoardState> state_history;
 
     Board() { init(); }
 
-    BoardState &current_state() { return *history.current(); }
+    BoardState &current_state() { return *state_history.current(); }
 
-    const BoardState &current_state() const { return *history.current(); }
+    const BoardState &current_state() const { return *state_history.current(); }
 
     Piece &operator[](const int32_t index) { return pieces[index]; }
 
@@ -37,15 +36,15 @@ struct Board {
     auto end() { return pieces.end(); }
 
     void init() {
-        history.push({});
+        state_history.push({});
         current_state().castle_rights = CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE;
         current_state().en_passant_index = -1;
     }
 
     void reset() {
         populate();
-        history.clear();
-        history.push({});
+        state_history.clear();
+        state_history.push({});
         current_state().castle_rights = CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE;
         current_state().en_passant_index = -1;
     }
