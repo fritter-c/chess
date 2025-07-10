@@ -21,6 +21,8 @@ struct Game {
     uint64_t move_count{0};
     history<AlgebraicMove> move_list{};
 
+    
+    // Methods
     Game();
 
     template <typename T> void set_player(const Color c, T player) {
@@ -32,29 +34,21 @@ struct Game {
             player_init(black_player, PIECE_BLACK);
         }
     }
-
     bool move(const int32_t from_row, const int32_t from_col, const int32_t to_row, const int32_t to_col, const PromotionPieceType promotion_type = PROMOTION_QUEEN) {
         return move(analyzer_get_move_from_simple(
             &board, SimpleMove{static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}, promotion_type));
     }
-
     bool random_move();
     bool move(const Move &move);
     bool undo();
     bool redo();
     void return_last_move();
     void return_first_move();
-
     bool board_in_check();
-
     void tick();
-
     void reset();
-
     const char *get_status_string() const;
-
     const char *get_winner_string() const;
-
     void push_move(const game::AlgebraicMove &move) { move_list.push(move); }
     void pop_move() { move_list.pop(); }
     void undo_move() { move_list.undo(); }

@@ -92,7 +92,6 @@ void BoardPanel::render() {
 
         ImGui::Text("Move count %lu", chess_game.move_count);
         ImGui::Text("Status %s (%s)", chess_game.get_status_string(), chess_game.get_winner_string());
-        // ImGui::Text("Available moves %d", game::analyzer_get_move_count(&chess_game.board, chess_game.turn));
 
         ImGui::EndChild();
         ImGui::BeginChild("Control Buttons", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY);
@@ -164,8 +163,6 @@ void BoardPanel::render() {
         ImGui::EndChild();
     }
     ImGui::End();
-
-    if (debug_chess_board) {}
 }
 
 } // namespace renderer
