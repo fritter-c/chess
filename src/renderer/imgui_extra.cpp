@@ -7,7 +7,7 @@
 #include "stb_image.h"
 
 namespace ImGui {
-bool load_texture_from_memory(const uint8_t *data, size_t data_size, GLuint *out_texture, int *out_width, int *out_height) {
+bool load_texture_from_memory(const uint8_t *data, size_t data_size, GLuint *out_texture) {
     // Load from file
     int image_width = 0;
     int image_height = 0;
@@ -30,13 +30,11 @@ bool load_texture_from_memory(const uint8_t *data, size_t data_size, GLuint *out
     stbi_image_free(image_data);
 
     *out_texture = image_texture;
-    *out_width = image_width;
-    *out_height = image_height;
 
     return true;
 }
 
-bool load_texture_from_file(const std::filesystem::path &filename, GLuint &out_texture, int &out_width, int &out_height) {
+bool load_texture_from_file(const std::filesystem::path &filename, GLuint &out_texture) {
     std::ifstream file{filename, std::ios::binary | std::ios::ate};
     if (!file)
         return false;
@@ -50,22 +48,18 @@ bool load_texture_from_file(const std::filesystem::path &filename, GLuint &out_t
     if (!file.read(reinterpret_cast<char *>(data.data()), size))
         return false;
 
-    return load_texture_from_memory(data.data(), data.size(), &out_texture, &out_width, &out_height);
+    return load_texture_from_memory(data.data(), data.size(), &out_texture);
 }
 
 GLuint LoadTexture(const std::filesystem::path &filename) {
-    int32_t width{};
-    int32_t height{};
-    GLuint texture{};
-    if (load_texture_from_file(filename, texture, width, height)) {
+    if (GLuint texture{}; load_texture_from_file(filename, texture)) {
         return texture;
     }
     return INVALID_TEXTURE_ID;
 }
 
 void LoadFont(const std::filesystem::path &filename, float size) {
-    auto &io = GetIO();
-    if (io.Fonts->AddFontFromFileTTF(filename.string().c_str(), size) == nullptr) {
+    if (auto &io = GetIO(); io.Fonts->AddFontFromFileTTF(filename.string().c_str(), size) == nullptr) {
         fprintf(stderr, "Failed to load font: %s\n", filename.string().c_str());
     } else {
         io.FontDefault = io.Fonts->Fonts.back();

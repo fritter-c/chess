@@ -40,9 +40,9 @@ bool Game::move(const Move &move) {
         return false;
     }
 
-    AlgebraicMove algebraic_move;
-    const Color moving_color = board.get_color(move.from_row(), move.from_col());
-    if (moving_color == turn && analyzer_can_move(&board, move.from_row(), move.from_col(), move.to_row(), move.to_col()) && board.move(move, algebraic_move)) {
+    if (board.get_color(move.from_row(), move.from_col()) == turn && analyzer_can_move(&board, move.from_row(), move.from_col(), move.to_row(), move.to_col())) {
+        AlgebraicMove algebraic_move;
+        board.move(move, algebraic_move);
         turn = ~turn;
         game_update_status(this);
         push_move(algebraic_move);
@@ -53,7 +53,6 @@ bool Game::move(const Move &move) {
 }
 
 bool Game::redo() {
-
     if (board.redo()) {
         turn = ~turn;
         game_update_status(this);
@@ -81,11 +80,11 @@ bool Game::random_move() {
 }
 
 void Game::return_last_move() {
-    while (redo()) {};
+    while (redo()) {/** Redo until it cannot */}
 }
 
 void Game::return_first_move() {
-    while (undo()) {};
+    while (undo()) {/** Undo until it cannot */}
 }
 
 bool Game::board_in_check() { return analyzer_is_color_in_check(&board, PIECE_WHITE) || analyzer_is_color_in_check(&board, PIECE_BLACK); }

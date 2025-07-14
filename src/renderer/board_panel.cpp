@@ -1,5 +1,4 @@
 #include "board_panel.hpp"
-#include "../game/analyzer.hpp"
 #include "../game/player.hpp"
 
 namespace renderer {
@@ -59,6 +58,47 @@ BoardPanel::BoardPanel() {
     chess_game.set_player(game::PIECE_BLACK, game::DrunkMan{});
 #endif
 }
+
+
+static void render_debug_info(BoardPanel* panel) {
+    ImGui::Checkbox("View as plain string", &panel->debug_plain_string);
+    if (panel->debug_plain_string) {
+        ImGui::TextUnformatted(panel->chess_game.board.board_to_string().c_str());
+    } else {
+        constexpr float piece_font_size = 30.0f;
+        ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0], piece_font_size);
+        ImGui::TextUnformatted(panel->chess_game.board.board_to_string().c_str());
+        ImGui::PopFont();
+    }
+    ImGui::Begin("Board BitBoards");
+    ImGui::TextUnformatted("Piece By Type");
+
+    // 4 columns, auto-resizes
+    if (ImGui::BeginTable("pieces_table", 4, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV))
+    {
+        for (int i = 0; i < game::PIECE_COUNT_PLUS_ANY; ++i)
+        {
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(game::piece_type_to_string(static_cast<game::PieceType>(i)));
+            ImGui::TextUnformatted(game::Board::print_bitboard(panel->chess_game.board.pieces_by_type[i]).c_str());
+        }
+        ImGui::EndTable();
+    }
+
+    ImGui::TextUnformatted("Piece By Color");
+    if (ImGui::BeginTable("color_table", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV)) {
+
+        for (int i = 0; i < game::COLOR_COUNT; ++i)
+        {
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(game::color_to_string(static_cast<game::Color>(i)));
+            ImGui::TextUnformatted(game::Board::print_bitboard(panel->chess_game.board.pieces_by_color[i]).c_str());
+        }
+        ImGui::EndTable();
+    }
+
+    ImGui::End();
+}
 void BoardPanel::render() {
     ImGui::SetNextWindowSize(ImVec2(1080, 1080), ImGuiCond_FirstUseEver);
     ImGui::Begin("Chess Board");
@@ -109,10 +149,8 @@ void BoardPanel::render() {
         }
 
         ImGui::SameLine();
-        if (ImGui::Button(">")) {
-            if (!chess_game.redo()){
-                chess_game.random_move();
-            }
+        if (ImGui::Button(">") && !chess_game.redo()) {
+            chess_game.random_move();
         }
         ImGui::SameLine();
         if (ImGui::Button(">>")) {
@@ -123,16 +161,9 @@ void BoardPanel::render() {
             debug_chess_board = !debug_chess_board;
         }
         if (debug_chess_board) {
-            ImGui::Checkbox("View as plain string", &debug_plain_string);
-            if (debug_plain_string) {
-                ImGui::TextUnformatted(chess_game.board.board_to_string().c_str());
-            } else {
-                constexpr float piece_font_size = 30.0f;
-                ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0], piece_font_size);
-                ImGui::TextUnformatted(chess_game.board.board_to_string().c_str());
-                ImGui::PopFont();
-            }
+            render_debug_info(this);
         }
+
         ImGui::EndChild();
 
         ImGui::BeginChild("Move List", ImVec2(0, 0));

@@ -2,6 +2,7 @@
 #include <cstdint>
 #include "piece.hpp"
 #include "string.hpp"
+#include "types.hpp"
 
 namespace game {
 struct SimpleMove {
@@ -14,14 +15,12 @@ struct SimpleMove {
     constexpr SimpleMove(const int32_t from_row, const int32_t from_col, const int32_t to_row, const int32_t to_col)
         : from_row(from_row), from_col(from_col), to_row(to_row), to_col(to_col) {}
 
-    constexpr SimpleMove(const int32_t origin, const int32_t destination)
-        : from_row(origin / 8), from_col(origin % 8), to_row(destination / 8),
-          to_col(destination % 8) {}
+    constexpr SimpleMove(const int32_t origin, const int32_t destination) : from_row(origin / 8), from_col(origin % 8), to_row(destination / 8), to_col(destination % 8) {}
 };
 
-// First 6 bits origin square, next 6 bits destination square
-// Them 2 bits for promotion piece type
-// Them 2 bits for flags (en passant, castle, promotion)
+// First 6-bits origin square, next 6-bits destination square
+// Them 2-bits for promotion piece type
+// Them 2-bits for flags (en passant, castle, promotion)
 struct Move {
     using storage_type = uint16_t;
     enum MoveSpecialType : uint8_t { MOVE_NONE = 0, MOVE_CASTLE, MOVE_PROMOTION, MOVE_EN_PASSANT };
@@ -84,12 +83,45 @@ struct Move {
 
     int32_t to_col() const { return get_destination() % 8; }
 
+    SquareIndex get_origin_index() const { return static_cast<SquareIndex>(get_origin()); }
+
+    SquareIndex get_destination_index() const { return static_cast<SquareIndex>(get_destination()); }
+
+    bool going_right() const { return (static_cast<int8_t>(get_destination()) - static_cast<int8_t>(get_origin())) % 8 > 0; }
+
+    bool going_left() const { return (static_cast<int8_t>(get_destination()) - static_cast<int8_t>(get_origin())) % 8 < 0; }
+
+    SquareIndex get_castle_rook_destination_index() const {
+        if (is_castle()) {
+            switch (get_destination_index()) {
+            case G1: return F1;
+            case C1: return D1;
+            case G8: return F8;
+            case C8: return D8;
+            default: return SQUARE_COUNT;
+            }
+        }
+        return SQUARE_COUNT;
+    }
+
+    SquareIndex get_castle_rook_origin_index() const {
+        if (is_castle()) {
+            switch (get_destination_index()) {
+            case G1: return H1;
+            case C1: return A1;
+            case G8: return H8;
+            case C8: return A8;
+            default: return SQUARE_COUNT;
+            }
+        }
+        return SQUARE_COUNT;
+    }
     bool operator==(const Move &b) const = default;
 };
 
 using AlgebraicMove = gtr::string;
 struct Board;
 // Consider that board still haven't move yet
-AlgebraicMove move_to_algebraic(Board& board, Move move);
-Move algebraic_to_move(Color turn, const Board& board, const AlgebraicMove& move);
+AlgebraicMove move_to_algebraic(Board &board, Move move);
+Move algebraic_to_move(Color turn, const Board &board, const AlgebraicMove &move);
 } // namespace game

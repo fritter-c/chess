@@ -27,8 +27,6 @@ bool analyzer_move_puts_to_checkmate(Board *board, const Move &move);
 
 bool analyzer_is_move_legal(Board *board, const Move &move);
 
-Square analyzer_where(Board *board, PieceType type, Color color, int32_t disambiguation_col = -1, int32_t disambiguation_row = -1);
-
 int32_t analyzer_get_move_count(Board *board, Color color);
 
 bool analyzer_get_is_stalemate(Board *board, Color friendly);

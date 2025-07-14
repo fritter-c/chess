@@ -4,11 +4,11 @@
 #include <cstdint>
 #include "board.hpp"
 #include "move.hpp"
-
+#define BITBOARD_VERSION 0
 namespace game {
+
 // Offsets for knight jumps:
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KNIGHT_DELTAS = {{{+2, +1}, {+2, -1}, {-2, +1}, {-2, -1}, {+1, +2}, {+1, -2}, {-1, +2}, {-1, -2}}};
-
 // Offsets for king moves (also used for pawn attack deltas and sliders' increment):
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KING_DELTAS = {{{+1, 0}, {-1, 0}, {0, +1}, {0, -1}, {+1, +1}, {+1, -1}, {-1, +1}, {-1, -1}}};
 
@@ -98,9 +98,10 @@ static bool analyzer_add_move(Board *board, const int32_t from_row, const int32_
         return false;
     const auto target = board->pieces[Board::get_index(to_row, to_col)];
     BoardState state{};
-    if (PIECE_TYPE(target) == EMPTY && board->move_stateless(analyzer_get_move_from_simple(board, {static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col),
-                                                                                                   static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}),
-                                                             state)) {
+    if (PIECE_TYPE(target) == EMPTY) {
+        board->move_stateless(
+            analyzer_get_move_from_simple(board, {static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}),
+            state);
         if (!analyzer_is_color_in_check(board, friendly)) {
             moves.set(to_row, to_col);
         }
@@ -111,20 +112,68 @@ static bool analyzer_add_move(Board *board, const int32_t from_row, const int32_
         return false;
     }
 
-    if (board->move_stateless(
-            analyzer_get_move_from_simple(board, {static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}),
-            state)) {
-        if (!analyzer_is_color_in_check(board, friendly)) {
-            moves.set(to_row, to_col);
-            board->undo_stateless(state);
-            return true;
-        }
+    board->move_stateless(
+        analyzer_get_move_from_simple(board, {static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}), state);
+    if (!analyzer_is_color_in_check(board, friendly)) {
+        moves.set(to_row, to_col);
         board->undo_stateless(state);
+        return true;
     }
+    board->undo_stateless(state);
+
     return false;
 }
 
 static void analyzer_get_pawn_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
+#if BITBOARD_VERSION
+    (void)piece;
+    const auto friendly = chess_piece_other_color(enemy);
+    const BitBoard emp = board->pieces_by_type[EMPTY];
+    const BitBoard enemy_bb = board->pieces_by_color[enemy];
+    const BitBoard origin_bb = static_cast<BitBoard>(1) << Board::get_index(row, col);
+    constexpr BitBoard not_file_a = 0xfefefefefefefefeULL;
+    constexpr BitBoard not_file_h = 0x7f7f7f7f7f7f7f7fULL;
+    auto record = [&](const BitBoard b) {
+        if (b) {
+            const int32_t t = std::countr_zero(b);
+            moves.set(t / 8, t % 8);
+        }
+    };
+
+    if (friendly == PIECE_WHITE) {
+        record(origin_bb << 8 & emp);
+        if (row == RANK_2)
+            record((origin_bb << 8 & emp) << 8 & emp);
+
+        // captures
+        record(origin_bb << 7 & enemy_bb & not_file_h);
+        record(origin_bb << 9 & enemy_bb & not_file_a);
+
+        // en passant
+        if (const int8_t ep = board->current_state().en_passant_index; ep >= 0) {
+            const BitBoard epb = static_cast<BitBoard>(1) << static_cast<uint8_t>(ep);
+            record(origin_bb << 7 & epb & not_file_h);
+            record(origin_bb << 9 & epb & not_file_a);
+        }
+    } else {
+        // 1‐step
+        record((origin_bb >> 8) & emp);
+        // 2‐step
+        if (row == RANK_7)
+            record((origin_bb >> 8 & emp) >> 8 & emp);
+
+        // captures
+        record(origin_bb >> 9 & enemy_bb & not_file_h);
+        record(origin_bb >> 7 & enemy_bb & not_file_a);
+
+        // en passant
+        if (const int8_t ep = board->current_state().en_passant_index; ep >= 0) {
+            const BitBoard epb = static_cast<BitBoard>(1) << static_cast<uint8_t>(ep);
+            record(origin_bb >> 9 & epb & not_file_h);
+            record(origin_bb >> 7 & epb & not_file_a);
+        }
+    }
+#else
     const auto friendly = PIECE_COLOR(piece);
     const int32_t dir = (friendly == PIECE_WHITE ? 1 : -1);
     // one-step
@@ -171,6 +220,7 @@ static void analyzer_get_pawn_moves(Board *board, const Piece piece, const int32
             std::ignore = analyzer_add_move(board, row, col, row - 1, col + 1, moves, enemy);
         }
     }
+#endif
 }
 
 static void analyzer_get_king_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
@@ -311,27 +361,6 @@ Move analyzer_get_move_from_simple(Board *board, const SimpleMove &move, Promoti
     return result;
 }
 
-Square analyzer_where(Board *board, const PieceType type, const Color color, const int32_t disambiguation_col, const int32_t disambiguation_row) {
-    Square square{};
-    for (uint8_t i = 0; i < SQUARE_COUNT; ++i) {
-        const auto row = Board::get_row(i);
-        const auto col = Board::get_col(i);
-        if (disambiguation_col != -1 && disambiguation_col != col) {
-            continue;
-        }
-        if (disambiguation_row != -1 && disambiguation_row != row) {
-            continue;
-        }
-
-        if (const auto piece = board->pieces[i]; PIECE_TYPE(piece) == type && PIECE_COLOR(piece) == color) {
-            square.row = static_cast<uint8_t>(row);
-            square.col = static_cast<uint8_t>(col);
-            return square; // Return the first found piece of the specified type and color
-        }
-    }
-    return square; // Return an empty square if not found
-}
-
 int32_t analyzer_get_move_count(Board *board, Color color) {
     int32_t count = 0;
     for (uint8_t i = 0; i < SQUARE_COUNT; ++i) {
@@ -407,7 +436,8 @@ bool analyzer_move_puts_to_check(Board *board, const Move &move) {
     const auto friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
     bool result = false;
     BoardState state{};
-    if (analyzer_is_move_legal(board, move) && board->move_stateless(move, state)) {
+    if (analyzer_is_move_legal(board, move)) {
+        board->move_stateless(move, state);
         if (analyzer_is_color_in_check(board, ~friendly)) {
             result = true;
         }
@@ -420,7 +450,8 @@ bool analyzer_move_puts_to_checkmate(Board *board, const Move &move) {
     const auto friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
     bool result = false;
     BoardState state{};
-    if (analyzer_is_move_legal(board, move) && board->move_stateless(move, state)) {
+    if (analyzer_is_move_legal(board, move)) {
+        board->move_stateless(move, state);
         if (analyzer_is_color_in_checkmate(board, ~friendly)) {
             result = true;
         }

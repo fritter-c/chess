@@ -10,7 +10,6 @@ template <typename T, uint64_t N = 0> struct history {
     uint64_t read_index{};
 
     T &operator[](uint64_t index) { return data[index]; }
-
     const T &operator[](uint64_t index) const { return data[index]; }
 
     bool push(const T &value) {

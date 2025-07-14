@@ -9,24 +9,12 @@
 #include <cstdio>
 #include <cstring>
 #include <emmintrin.h>
+#include <memory>
 #include "allocator.hpp"
 #include "assert.hpp"
 #include "container_base.hpp"
-#ifdef _MSC_VER
-#include <intrin.h>
-static int32_t ctz(uint32_t x) {
-    unsigned long index;
-    _BitScanForward(&index, x);
-    return static_cast<int32_t>(index);
-}
-#else
-#define ctz(x) __builtin_ctz(x)
-#endif
-#ifdef TEXT_PARANOID
-#define PARANOID_ASSERT(x) Assert(x, "Data is not on the heap!");
-#else
-#define PARANOID_ASSERT(x)
-#endif
+#include "os.hpp"
+#define PARANOID_ASSERT(x) ((void)0)
 namespace gtr {
 /**
  * @brief A text container with a fixed-size local buffer and dynamic allocation support.
@@ -57,7 +45,6 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
   private:
     alignas(c_allocator<char>::pointer_type) char data[N]{}; // Either a local buffer or [0] pointer, [1] size, [2] capacity and the last byte the heap flag
                                                              // Data is a union {char[N]; {char *, uint64_t, uint64_t}; }
-
     uint64_t strlen() const {
         PARANOID_ASSERT(!local_data());
         if (!data[0])
@@ -65,11 +52,10 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
         const char *s = data;
         const __m128i zero = _mm_setzero_si128();
         while (true) {
-            // Aligning to 16 bytes is not worth it, load unaligned.
             const __m128i chunk = _mm_loadu_si128(std::bit_cast<const __m128i *>(s));
             const __m128i cmp = _mm_cmpeq_epi8(chunk, zero);
-            if (const int32_t mask = _mm_movemask_epi8(cmp); mask != 0) {
-                return (s - data) + ctz(mask);
+            if (const uint32_t mask = _mm_movemask_epi8(cmp); mask != 0) {
+                return (s - data) + std::countr_zero(mask);
             }
             s += 16;
         }
@@ -86,7 +72,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
                 const __m128i chunk2 = _mm_loadu_si128(std::bit_cast<const __m128i *>(s2 + i));
                 const __m128i cmp = _mm_cmpeq_epi8(chunk1, chunk2);
                 if (const int32_t mask = _mm_movemask_epi8(cmp); mask != 0xFFFF) {
-                    const int32_t diffIndex = ctz(static_cast<uint32_t>(~mask));
+                    const int32_t diffIndex = std::countr_zero(static_cast<uint32_t>(~mask));
                     const uint64_t index = i + diffIndex;
                     return static_cast<unsigned char>(s1[index]) - static_cast<unsigned char>(s2[index]);
                 }
@@ -97,11 +83,13 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
     static uint64_t next_multiple_of_16(const uint64_t n) { return (n + 15) & ~15; }
 
   public:
-#ifdef _MSC_VER
-    static constexpr char path_separator = '\\';
-#else
-    static constexpr char path_separator = '/';
-#endif
+    static constexpr char path_separator() {
+        if constexpr (get_os() == OS::WINDOWS) {
+            return '\\';
+        } else {
+            return '/';
+        }
+    }
 
     Allocator &allocator() { return container_base<Allocator>::allocator(); }
     const Allocator &allocator() const { return container_base<Allocator>::allocator(); }
@@ -191,7 +179,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
         if (local_data()) {
             return strlen();
         }
-        return reinterpret_cast<const size_type *>(data)[1];
+        return std::bit_cast<const size_type *>(&data[0])[1];
     }
 
     /**
@@ -236,7 +224,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
         if (local_data()) {
             return N - 1;
         }
-        return reinterpret_cast<const size_type *>(data)[2];
+        return std::bit_cast<const size_type *>(&data[0])[2];
     }
 
     /**
@@ -249,7 +237,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     void set_size(const size_type new_size) {
         if (!local_data()) {
-            reinterpret_cast<size_type *>(data)[1] = new_size;
+            std::bit_cast<size_type *>(&data[0])[1] = new_size;
         }
     }
 
@@ -264,7 +252,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     void set_capacity(const size_type new_capacity) {
         if (!local_data()) {
-            reinterpret_cast<size_type *>(data)[2] = new_capacity;
+            std::bit_cast<size_type *>(&data[0])[2] = new_capacity;
         }
     }
 
@@ -1345,8 +1333,8 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     char_string operator/=(const value_type *str) {
         char_string to_append;
-        if (last() != path_separator) {
-            to_append.append(path_separator);
+        if (last() != path_separator()) {
+            to_append.append(path_separator());
         }
         to_append.append(str);
         return operator+=(to_append);
@@ -1364,8 +1352,8 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     char_string operator/=(const char_string &str) {
         char_string to_append;
-        if (last() != path_separator) {
-            to_append.append(path_separator);
+        if (last() != path_separator()) {
+            to_append.append(path_separator());
         }
         to_append.append(str);
         return operator+=(to_append);
@@ -1383,8 +1371,8 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     char_string operator/=(value_type c) {
         char_string to_append;
-        if (last() != path_separator) {
-            to_append.append(path_separator);
+        if (last() != path_separator()) {
+            to_append.append(path_separator());
         }
         to_append.append(c);
         return operator+=(to_append);
@@ -1402,8 +1390,8 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     char_string operator/(const value_type *str) {
         char_string to_append;
-        if (last() != path_separator) {
-            to_append.append(path_separator);
+        if (last() != path_separator()) {
+            to_append.append(path_separator());
         }
         to_append.append(str);
         return operator+(to_append);
@@ -1421,8 +1409,8 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     char_string operator/(const char_string &str) {
         char_string to_append;
-        if (last() != path_separator) {
-            to_append.append(path_separator);
+        if (last() != path_separator()) {
+            to_append.append(path_separator());
         }
         to_append.append(str);
         return operator+=(to_append);
@@ -1441,8 +1429,8 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     char_string operator/(value_type c) {
         char_string to_append;
-        if (last() != path_separator) {
-            to_append.append(path_separator);
+        if (last() != path_separator()) {
+            to_append.append(path_separator());
         }
         to_append.append(c);
         return operator+=(to_append);
@@ -1459,7 +1447,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      * @return A text representing the parent directory, or an empty text if the path contains no separator.
      */
     char_string parent_path() {
-        if (const size_type index = find_last_of(path_separator); index != npos) {
+        if (const size_type index = find_last_of(path_separator()); index != npos) {
             return substr(0, index);
         }
         return char_string();

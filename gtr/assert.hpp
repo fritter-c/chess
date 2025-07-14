@@ -1,6 +1,7 @@
 #pragma once
 #ifndef Assert
 #include <cstdio>
+#define FULL_DEBUG 1
 #define DEBUG_ASSERT(x, message)                                                                                                                                                   \
     if (!(x)) {                                                                                                                                                                    \
         printf("%s Line: %d: Assertion failed: %s\n", __FUNCTION__, __LINE__, message);                                                                                            \

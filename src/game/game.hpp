@@ -49,7 +49,7 @@ struct Game {
     void reset();
     const char *get_status_string() const;
     const char *get_winner_string() const;
-    void push_move(const game::AlgebraicMove &move) { move_list.push(move); }
+    void push_move(const AlgebraicMove &move) { move_list.push(move); }
     void pop_move() { move_list.pop(); }
     void undo_move() { move_list.undo(); }
     void redo_move() { move_list.redo(); }

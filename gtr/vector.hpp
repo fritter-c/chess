@@ -187,16 +187,13 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
         using ATraits = std::allocator_traits<Allocator>;
         using Base = container_base<Allocator>;
 
-        // 1) propagate allocator on copy‐assignment?
         if constexpr (ATraits::propagate_on_container_copy_assignment::value) {
-            // call base’s copy‐op to copy the allocator
             static_cast<Base &>(*this) = other;
         }
 
-        // 2) ensure capacity
         if (other.size() > capacity()) {
             free_all();
-            data = allocate(other.capacity());
+            data = this->allocate(other.capacity());
             capacity_end = data + other.capacity();
         }
 
@@ -221,7 +218,6 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
         using ATraits = std::allocator_traits<Allocator>;
         using Base = container_base<Allocator>;
 
-        // 1) can we steal allocator+buffer?
         if constexpr (ATraits::propagate_on_container_move_assignment::value || ATraits::is_always_equal::value) {
             free_all();
             // move‐assign the allocator

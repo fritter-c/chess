@@ -1,9 +1,6 @@
-namespace renderer
-{
-    extern int render();
+namespace renderer {
+extern int render();
 }
-
-int main()
-{
+int main() {
     return renderer::render();
 }
