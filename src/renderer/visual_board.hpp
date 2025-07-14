@@ -27,8 +27,6 @@ struct VisualBoard {
 
     void render(game::Game *game, float width, float height);
     void flip_board() { flipped = !flipped; }
-
-
 };
 
 GLuint get_piece_texture(game::Piece piece);

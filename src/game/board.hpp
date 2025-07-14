@@ -82,7 +82,7 @@ struct Board {
                         : std::to_integer<int>(current_state().castle_rights & CASTLE_BLACK_QUEENSIDE) != 0;
     }
 
-    constexpr bool pawn_is_being_promoted(const SimpleMove move) const {
+    bool pawn_is_being_promoted(const SimpleMove move) const {
         static constexpr std::array<BitBoard, 15> pawn_promotion_bitboards = {0, bitboard_from_squares<A8>(), 0, 0, 0, 0, 0, 0, 0, bitboard_from_squares<A1>(), 0, 0, 0, 0, 0};
         return bitboard_get(pawn_promotion_bitboards[pieces[get_index(move.from_row, move.from_col)]], square_index(move.to_row, 0));
     }
