@@ -121,11 +121,9 @@ static void render_debug_info(BoardPanel *panel) {
         ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.bishop_attacks[panel->selected_square]).c_str());
         break;
     case 5: // Queen Attacks
-    {
         ImGui::TextUnformatted("Queen Attacks");
-        game::BitBoard queen_attacks = game::MAGIC_BOARD.rook_attacks[panel->selected_square] | game::MAGIC_BOARD.bishop_attacks[panel->selected_square];
-        ImGui::TextUnformatted(game::Board::print_bitboard(queen_attacks).c_str());
-    } break;
+        ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.queen_attacks(static_cast<game::SquareIndex>(panel->selected_square))).c_str());
+        break;
     default: ImGui::TextUnformatted("Unknown Magic Board"); break;
     }
     ImGui::End();
