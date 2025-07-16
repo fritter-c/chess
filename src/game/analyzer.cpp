@@ -4,6 +4,7 @@
 #include <cstdint>
 #include "board.hpp"
 #include "move.hpp"
+#include "bitboard.hpp"
 #define BITBOARD_VERSION 0
 namespace game {
 
@@ -11,6 +12,8 @@ namespace game {
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KNIGHT_DELTAS = {{{+2, +1}, {+2, -1}, {-2, +1}, {-2, -1}, {+1, +2}, {+1, -2}, {-1, +2}, {-1, -2}}};
 // Offsets for king moves (also used for pawn attack deltas and sliders' increment):
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KING_DELTAS = {{{+1, 0}, {-1, 0}, {0, +1}, {0, -1}, {+1, +1}, {+1, -1}, {-1, +1}, {-1, -1}}};
+
+
 
 static bool analyzer_is_pawn_attacking(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
     const int32_t pawn_dir = (attacker == PIECE_WHITE ? -1 : +1);

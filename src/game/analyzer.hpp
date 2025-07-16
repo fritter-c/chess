@@ -1,6 +1,9 @@
 #pragma once
 #include <cstdint>
 #include "board.hpp"
+#include "types.hpp"
+#include "move.hpp"
+#include "bitboard.hpp"
 
 namespace game {
 AvailableMoves analyzer_get_available_moves_for_piece(Board *board, int32_t row, int32_t col);
@@ -32,4 +35,6 @@ int32_t analyzer_get_move_count(Board *board, Color color);
 bool analyzer_get_is_stalemate(Board *board, Color friendly);
 
 bool analyzer_is_insufficient_material(const Board *board);
+
+static constexpr MagicBoards MAGIC_BOARD = init_magic_boards();
 } // namespace game

@@ -9,6 +9,8 @@ struct BoardPanel {
     game::Game chess_game{};
     bool debug_chess_board{false};
     bool debug_plain_string{false};
+    int selected_magic_board{0};
+    int selected_square{0};
     void render();
     BoardPanel();
 };

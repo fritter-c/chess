@@ -51,6 +51,15 @@ static constexpr NameArray CellNames{{NameRank{{"a1", "b1", "c1", "d1", "e1", "f
                                       NameRank{{"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6"}},
                                       NameRank{{"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7"}},
                                       NameRank{{"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8"}}}};
+
+static constexpr const char* CellNamesC[] {"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+                                           "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
+                                           "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+                                           "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
+                                           "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+                                           "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
+                                           "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+                                           "a8", "b8", "c8", "d8", "e8", "f8", "g8"};
 // clang-format on
 
 constexpr int32_t square_file(const SquareIndex sq) noexcept { return static_cast<int32_t>(std::to_underlying(sq)) & 7; }
@@ -91,6 +100,12 @@ template <uint32_t... Squares> constexpr BitBoard bitboard_from_squares() noexce
     return bit;
 }
 
+template <int = 0, typename... Squares> constexpr BitBoard bitboard_from_squares(Squares... s) noexcept {
+    BitBoard bit = 0;
+    ((bit |= static_cast<BitBoard>(1) << static_cast<uint32_t>(s)), ...);
+    return bit;
+}
+
 enum BitBoardDirection : int8_t {
     BLACK_DIRECTION = 8,
     WHITE_DIRECTION = -BLACK_DIRECTION,
@@ -127,9 +142,13 @@ struct MagicBoards {
     std::array<std::array<BitBoard, 64>, 2> pawn_attacks;
     std::array<BitBoard, 64> knight_attacks;
     std::array<BitBoard, 64> king_attacks;
-    std::array<BitBoard, 64> bishop_occupancy;
-    std::array<BitBoard, 64> rook_occupancy;
     std::array<BitBoard, 64> bishop_attacks;
     std::array<BitBoard, 64> rook_attacks;
+    // Queen attacks bishop_attacks | rook_attacks
+    BitBoard queen_attacks(SquareIndex sq) const noexcept {
+        return bishop_attacks[sq] | rook_attacks[sq];
+    }
 };
+
+
 } // namespace game

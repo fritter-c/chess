@@ -1,5 +1,6 @@
 #include "game.hpp"
 #include "analyzer.hpp"
+#include "bitboard.hpp"
 namespace game {
 Game::Game() {
     board.init();
