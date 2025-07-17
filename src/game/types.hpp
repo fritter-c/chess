@@ -145,7 +145,7 @@ struct MagicBoards {
     std::array<BitBoard, 64> bishop_attacks;
     std::array<BitBoard, 64> rook_attacks;
     // Queen attacks bishop_attacks | rook_attacks
-    BitBoard queen_attacks(SquareIndex sq) const noexcept {
+    BitBoard queen_attacks(const int32_t sq) const noexcept {
         return bishop_attacks[sq] | rook_attacks[sq];
     }
 };

@@ -129,6 +129,6 @@ struct Board {
         bitboard_set(pieces_by_type[ANY], s);
         bitboard_clear(pieces_by_type[EMPTY], s);
     }
-    static gtr::char_string<128> print_bitboard(BitBoard board);
+    static gtr::char_string<256> print_bitboard(BitBoard board);
 };
 } // namespace game

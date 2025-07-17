@@ -94,8 +94,8 @@ static void render_debug_info(BoardPanel *panel) {
     }
     ImGui::Separator();
     ImGui::TextUnformatted("Magic Boards");
-    static constexpr const char *magic_boards_names[] = {"Pawn Attacks", "Knight Attacks", "King Attacks", "Rook Attacks", "Bishop Attacks", "Queen Attacks"};
-    ImGui::Combo("###Table", &panel->selected_magic_board, magic_boards_names, std::size(magic_boards_names));
+    static constexpr std::array<const char*,6>  magic_boards_names = {"Pawn Attacks", "Knight Attacks", "King Attacks", "Rook Attacks", "Bishop Attacks", "Queen Attacks"};
+    ImGui::Combo("###Table", &panel->selected_magic_board, magic_boards_names.data(), magic_boards_names.size());
     ImGui::Combo("###Square", &panel->selected_square, game::CellNamesC, std::size(game::CellNamesC));
     switch (panel->selected_magic_board) {
     case 0: // Pawn Attacks
@@ -122,7 +122,7 @@ static void render_debug_info(BoardPanel *panel) {
         break;
     case 5: // Queen Attacks
         ImGui::TextUnformatted("Queen Attacks");
-        ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.queen_attacks(static_cast<game::SquareIndex>(panel->selected_square))).c_str());
+        ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.queen_attacks(panel->selected_square)).c_str());
         break;
     default: ImGui::TextUnformatted("Unknown Magic Board"); break;
     }

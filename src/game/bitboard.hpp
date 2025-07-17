@@ -16,7 +16,7 @@ template <typename Offsets> constexpr BitBoard make_attack_mask(int square, cons
 
 consteval MagicBoards init_magic_boards() noexcept {
     // pawn attacks
-    MagicBoards mb;
+    MagicBoards mb{};
     for (int color = 0; color < COLOR_COUNT; ++color) {
         // for white, dr=+1; for black, dr=–1
         int pawn_dr = (color == 0 ? +1 : -1);

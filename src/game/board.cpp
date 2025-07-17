@@ -200,9 +200,10 @@ gtr::char_string<128> Board::board_to_string() const {
     return board_str;
 }
 
-gtr::char_string<128> Board::print_bitboard(const BitBoard board) {
-    gtr::char_string<128> board_str;
+gtr::char_string<256> Board::print_bitboard(const BitBoard board) {
+    gtr::char_string<256> board_str;
     for (int32_t row = 7; row >= 0; --row) {
+        board_str += gtr::format("%d. ",row + 1);
         for (int32_t col = 0; col < 8; ++col) {
             if (bitboard_get(board, row, col)) {
                 board_str += "1 ";
@@ -211,6 +212,12 @@ gtr::char_string<128> Board::print_bitboard(const BitBoard board) {
             }
         }
         board_str += "\n";
+    }
+    static constexpr char files[] = "abcdefgh";
+    board_str += "   ";
+    for (int32_t col = 0; col < 8; ++col) {
+        board_str += files[col];
+        board_str += " ";
     }
     return board_str;
 }
