@@ -125,7 +125,7 @@ static void render_debug_info(BoardPanel *panel) {
         break;
     case 5: // Queen Attacks
         ImGui::TextUnformatted("Queen Attacks");
-        ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.queen_attacks(panel->selected_square)).c_str());
+        ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.queen_attacks(static_cast<game::SquareIndex>(panel->selected_square))).c_str());
         break;
     case 6: // Rook Mask
         ImGui::TextUnformatted("Rook Occupancy Mask");

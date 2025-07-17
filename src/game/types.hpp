@@ -155,11 +155,7 @@ struct MagicBoards {
     std::array<BitBoard, 64> bishop_attacks;
     std::array<BitBoard, 64> rook_attacks;
     // Queen attacks bishop_attacks | rook_attacks
-<<<<<<< HEAD
-    BitBoard queen_attacks(const int32_t sq) const noexcept {
-        return bishop_attacks[sq] | rook_attacks[sq];
-    }
-=======
+
     BitBoard queen_attacks(SquareIndex sq) const noexcept { return bishop_attacks[sq] | rook_attacks[sq]; }
 
     std::array<BitBoard, 64> bishop_occupancy_mask;
@@ -168,7 +164,6 @@ struct MagicBoards {
     // how many bits each mask has
     std::array<int, 64> bishop_relevant_bits;
     std::array<int, 64> rook_relevant_bits;
->>>>>>> 10b127c (bitboards analysis)
 };
 
 } // namespace game
