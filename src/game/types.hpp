@@ -76,6 +76,8 @@ constexpr bool squares_same_anti_diagonal(const SquareIndex a, const SquareIndex
 
 using BitBoard = uint64_t;
 
+static constexpr BitBoard RANK_MASK = 0xFFULL;
+
 constexpr void bitboard_set(BitBoard &bit, const uint32_t r, const uint32_t f) noexcept { bit |= static_cast<BitBoard>(1) << (r * 8 + f); }
 
 constexpr void bitboard_set(BitBoard &bit, const uint32_t sq) noexcept { bit |= static_cast<BitBoard>(1) << sq; }
@@ -94,6 +96,8 @@ constexpr void bitboard_move_bit(BitBoard &b, const uint32_t from_square, const 
     b = b & ~(static_cast<BitBoard>(1) << from_square) | static_cast<BitBoard>(1) << to_square;
 }
 
+inline uint8_t bitboard_extract_rank(BitBoard bb, int32_t r) noexcept { return static_cast<uint8_t>((bb >> (r * 8)) & RANK_MASK); }
+
 template <uint32_t... Squares> constexpr BitBoard bitboard_from_squares() noexcept {
     BitBoard bit = 0;
     ((bit |= static_cast<BitBoard>(1) << Squares), ...);
@@ -104,6 +108,12 @@ template <int = 0, typename... Squares> constexpr BitBoard bitboard_from_squares
     BitBoard bit = 0;
     ((bit |= static_cast<BitBoard>(1) << static_cast<uint32_t>(s)), ...);
     return bit;
+}
+
+
+inline int32_t bitboard_index(BitBoard bb) noexcept {
+    Assert(bb != 0 && std::has_single_bit(bb), "bitboard_index: expected exactly one bit set");
+    return static_cast<int32_t>(std::countr_zero(bb));
 }
 
 enum BitBoardDirection : int8_t {
@@ -145,10 +155,20 @@ struct MagicBoards {
     std::array<BitBoard, 64> bishop_attacks;
     std::array<BitBoard, 64> rook_attacks;
     // Queen attacks bishop_attacks | rook_attacks
+<<<<<<< HEAD
     BitBoard queen_attacks(const int32_t sq) const noexcept {
         return bishop_attacks[sq] | rook_attacks[sq];
     }
-};
+=======
+    BitBoard queen_attacks(SquareIndex sq) const noexcept { return bishop_attacks[sq] | rook_attacks[sq]; }
 
+    std::array<BitBoard, 64> bishop_occupancy_mask;
+    std::array<BitBoard, 64> rook_occupancy_mask;
+
+    // how many bits each mask has
+    std::array<int, 64> bishop_relevant_bits;
+    std::array<int, 64> rook_relevant_bits;
+>>>>>>> 10b127c (bitboards analysis)
+};
 
 } // namespace game

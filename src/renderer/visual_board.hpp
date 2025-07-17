@@ -10,7 +10,6 @@ struct Game;
 }
 
 namespace renderer {
-struct BoardPanel;
 struct VisualBoard {
     static constexpr ImVec2 PIECE_SIZE = ImVec2(128.0f, 128.0f);
     float board_size{};
@@ -23,7 +22,6 @@ struct VisualBoard {
     game::AvailableMoves available_squares_for_dragging{};
     bool waiting_promotion{false};
     game::SimpleMove promotion_move{};
-
 
     void render(game::Game *game, float width, float height);
     void flip_board() { flipped = !flipped; }

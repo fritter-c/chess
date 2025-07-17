@@ -40,6 +40,41 @@ consteval MagicBoards init_magic_boards() noexcept {
                                             std::pair{+4, -4}, std::pair{-4, +4}, std::pair{+5, +5}, std::pair{-5, -5}, std::pair{+5, -5}, std::pair{-5, +5}, std::pair{+6, +6},
                                             std::pair{-6, -6}, std::pair{+6, -6}, std::pair{-6, +6}, std::pair{+7, +7}, std::pair{-7, -7}, std::pair{+7, -7}, std::pair{-7, +7}});
     }
+
+    constexpr std::array<std::pair<int, int>, 4> rook_dirs{{{+1, 0}, {-1, 0}, {0, +1}, {0, -1}}};
+    constexpr std::array<std::pair<int, int>, 4> bishop_dirs{{{+1, +1}, {+1, -1}, {-1, +1}, {-1, -1}}};
+
+    for (int sq = 0; sq < SQUARE_COUNT; ++sq) {
+        const int r = sq / 8, c = sq % 8;
+
+        // — rook occupancy mask —
+        BitBoard rook_mask = 0;
+        for (auto [dr, dc] : rook_dirs) {
+            int rr = r + dr, cc = c + dc;
+            // step until *just before* the edge (i.e. rr in (1..6), cc in (1..6))
+            while (rr > 0 && rr < 7 && cc > 0 && cc < 7) {
+                rook_mask |= (BitBoard{1} << (rr * 8 + cc));
+                rr += dr;
+                cc += dc;
+            }
+        }
+        mb.rook_occupancy_mask[sq] = rook_mask;
+        mb.rook_relevant_bits[sq] = bitboard_count(rook_mask);
+
+        // — bishop occupancy mask —
+        BitBoard bishop_mask = 0;
+        for (auto [dr, dc] : bishop_dirs) {
+            int rr = r + dr, cc = c + dc;
+            while (rr > 0 && rr < 7 && cc > 0 && cc < 7) {
+                bishop_mask |= (BitBoard{1} << (rr * 8 + cc));
+                rr += dr;
+                cc += dc;
+            }
+        }
+        mb.bishop_occupancy_mask[sq] = bishop_mask;
+        mb.bishop_relevant_bits[sq] = bitboard_count(bishop_mask);
+    }
+
     return mb;
 }
 }

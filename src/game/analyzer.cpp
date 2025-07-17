@@ -2,9 +2,9 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include "bitboard.hpp"
 #include "board.hpp"
 #include "move.hpp"
-#include "bitboard.hpp"
 #define BITBOARD_VERSION 0
 namespace game {
 
@@ -12,23 +12,23 @@ namespace game {
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KNIGHT_DELTAS = {{{+2, +1}, {+2, -1}, {-2, +1}, {-2, -1}, {+1, +2}, {+1, -2}, {-1, +2}, {-1, -2}}};
 // Offsets for king moves (also used for pawn attack deltas and sliders' increment):
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KING_DELTAS = {{{+1, 0}, {-1, 0}, {0, +1}, {0, -1}, {+1, +1}, {+1, -1}, {-1, +1}, {-1, -1}}};
-
-
+// Offsets for pawn position attacks(By color):
+static constexpr std::array pawn_attack_cols = {-1, +1}; // -1 for white, +1 for black
 
 static bool analyzer_is_pawn_attacking(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
-    const int32_t pawn_dir = (attacker == PIECE_WHITE ? -1 : +1);
-    for (const int32_t dc : {-1, +1}) {
-        const int32_t r = row + pawn_dir;
-        if (const int32_t c = col + dc; r >= RANK_1 && r < RANK_COUNT && c >= FILE_A && c < FILE_COUNT) {
-            auto p = board->pieces[Board::get_index(r, c)];
-            if (PIECE_TYPE(p) == PAWN && PIECE_COLOR(p) == attacker)
-                return true;
-        }
-    }
-    return false;
+    const int32_t from_row = row + pawn_attack_cols[attacker];
+    if (from_row < 0 || from_row >= RANK_COUNT) // no such rank
+        return false;
+    const BitBoard pawn_bb = board->pieces_by_type[PAWN] & board->pieces_by_color[attacker];
+    const uint8_t pawn_rank = bitboard_extract_rank(pawn_bb, from_row);
+    const uint16_t mask10 = (uint16_t{0b101} << col) >> 1;
+    return (pawn_rank & static_cast<uint8_t>(mask10)) != 0;
 }
 
 static bool analyzer_is_knight_attacking(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
+    const BitBoard knight_bb = board->pieces_by_type[KNIGHT] & board->pieces_by_color[attacker];
+    const BitBoard target_bb = static_cast<BitBoard>(1) << Board::get_index(row, col);
+    
     for (auto [dr, dc] : KNIGHT_DELTAS) {
         const int32_t r = row + dr;
         const int32_t c = col + dc;
@@ -67,16 +67,7 @@ static bool analyzer_is_slider_attacking(const Board *board, const int32_t row, 
 }
 
 static bool analyzer_is_king_attacking(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
-    for (auto [dr, dc] : KING_DELTAS) {
-        const int32_t r = row + dr;
-        const int32_t c = col + dc;
-        if (r >= RANK_1 && r < RANK_COUNT && c >= FILE_A && c < FILE_COUNT) {
-            auto p = board->pieces[Board::get_index(r, c)];
-            if (PIECE_TYPE(p) == KING && PIECE_COLOR(p) == attacker)
-                return true;
-        }
-    }
-    return false;
+    return MAGIC_BOARD.king_attacks[bitboard_index(board->pieces_by_type[KING] & board->pieces_by_color[attacker])] & (static_cast<BitBoard>(1) << Board::get_index(row, col));
 }
 
 bool analyzer_is_cell_under_attack_by_color(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
@@ -383,55 +374,49 @@ static bool square_is_light(const int32_t sq) {
 }
 
 bool analyzer_is_insufficient_material(const Board *board) {
-    int32_t white_minors = 0;
-    int32_t black_minors = 0;
-    std::array white_bsq = {false, false};
-    std::array black_bsq = {false, false};
-    for (int32_t sq = 0; sq < SQUARE_COUNT; ++sq) {
-        const auto p = board->pieces[sq];
-        switch (PIECE_TYPE(p)) {
-        case KING: break;
-        case PAWN:
-        case ROOK:
-        case QUEEN:
-            // any pawn, rook or queen → sufficient
-            return false;
-        case BISHOP: {
-            const bool is_light = square_is_light(sq);
-            if (PIECE_COLOR(p) == PIECE_WHITE) {
-                ++white_minors;
-                white_bsq[is_light] = true;
-            } else {
-                ++black_minors;
-                black_bsq[is_light] = true;
-            }
-            break;
-        }
-        case KNIGHT:
-            if (PIECE_COLOR(p) == PIECE_WHITE)
-                ++white_minors;
-            else
-                ++black_minors;
-            break;
-        default: break;
-        }
-    }
+    using std::popcount;
 
-    const int32_t total_minors = white_minors + black_minors;
+    // 1) any pawn, rook or queen (of either color) → sufficient material
+    if (board->pieces_by_type[PAWN] != 0ULL)
+        return false;
+    if (board->pieces_by_type[ROOK] != 0ULL)
+        return false;
+    if (board->pieces_by_type[QUEEN] != 0ULL)
+        return false;
 
-    // K vs K
+    // 2) get the bitboards of bishops and knights
+    BitBoard bishop_bb = board->pieces_by_type[BISHOP];
+    BitBoard knight_bb = board->pieces_by_type[KNIGHT];
+
+    // 3) split them by color
+    BitBoard white_bb = board->pieces_by_color[PIECE_WHITE];
+    BitBoard black_bb = board->pieces_by_color[PIECE_BLACK];
+
+    // count each
+    int32_t white_bishops = popcount(bishop_bb & white_bb);
+    int32_t black_bishops = popcount(bishop_bb & black_bb);
+    int32_t white_knights = popcount(knight_bb & white_bb);
+    int32_t black_knights = popcount(knight_bb & black_bb);
+
+    int32_t white_minors = white_bishops + white_knights;
+    int32_t black_minors = black_bishops + black_knights;
+    int32_t total_minors = white_minors + black_minors;
+
+    // 4) the same three insufficient‐material cases:
+    //    K vs K
     if (total_minors == 0)
         return true;
 
-    // K+N or K+B vs K
+    //    K + one minor vs K
     if (total_minors == 1)
         return true;
 
-    // K+B vs. K+B (we treat any two-bishop endgame as insufficient)
-    if (total_minors == 2 && white_minors == 1 && black_minors == 1)
+    //    K+B vs K+B or K+N vs K+N (one minor each side)
+    if (total_minors == 2 && white_minors == 1 && black_minors == 1) {
         return true;
+    }
 
-    // everything else (e,g. two knights, knight+bishop vs. king, >2 minors…) is “sufficient”
+    // 5) otherwise, there is mating material
     return false;
 }
 
