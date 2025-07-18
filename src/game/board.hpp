@@ -9,6 +9,7 @@
 namespace game {
 struct BoardState {
     std::byte castle_rights;
+    BitBoard castle_rights_bit;
     int8_t en_passant_index;
     Piece captured_piece;
     Piece moved_piece;
@@ -54,11 +55,6 @@ struct Board {
 
     static constexpr int32_t get_col(const int32_t index) { return index % 8; }
 
-    static bool pawn_first_move(const Piece piece, const int32_t row) {
-        static constexpr std::array pawn_starting_pos_col_0 = {bitboard_from_squares<A2>(), bitboard_from_squares<A7>()};
-        return bitboard_get(pawn_starting_pos_col_0[PIECE_COLOR(piece)], row, 0);
-    }
-
     void move(Move m);
     void move(Move m, AlgebraicMove &out_alg);
     void move_stateless(Move m, BoardState &state);
@@ -69,20 +65,6 @@ struct Board {
     bool redo();
 
     static constexpr bool valid_rol_col(const int32_t row, const int32_t col) { return row >= RANK_1 && row <= RANK_7 && col >= FILE_A && col <= FILE_H; }
-
-    bool can_en_passant_this(const int32_t row, const int32_t col, const Color enemy) const {
-        return valid_rol_col(row, col) && PIECE_TYPE(pieces[get_index(row, col)]) == PAWN && PIECE_COLOR(pieces[get_index(row, col)]) == enemy &&
-               get_index(row, col) == current_state().en_passant_index;
-    }
-
-    bool castle_rights_for(const Color color, const bool kingside) const {
-        if (color == PIECE_WHITE) {
-            return kingside ? std::to_integer<int>(current_state().castle_rights & CASTLE_WHITE_KINGSIDE) != 0
-                            : std::to_integer<int>(current_state().castle_rights & CASTLE_WHITE_QUEENSIDE) != 0;
-        }
-        return kingside ? std::to_integer<int>(current_state().castle_rights & CASTLE_BLACK_KINGSIDE) != 0
-                        : std::to_integer<int>(current_state().castle_rights & CASTLE_BLACK_QUEENSIDE) != 0;
-    }
 
     bool pawn_is_being_promoted(const SimpleMove move) const {
         static constexpr std::array<BitBoard, 15> pawn_promotion_bitboards = {0, bitboard_from_squares<A8>(), 0, 0, 0, 0, 0, 0, 0, bitboard_from_squares<A1>(), 0, 0, 0, 0, 0};
@@ -95,7 +77,7 @@ struct Board {
 
     bool is_en_passant(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col) const;
 
-    gtr::char_string<128> board_to_string() const;
+    gtr::large_string board_to_string() const;
 
     constexpr void move_piece(const SquareIndex origin, const SquareIndex destination) {
         const Piece p = pieces[origin];
@@ -131,6 +113,13 @@ struct Board {
         bitboard_set(pieces_by_type[ANY], s);
         bitboard_clear(pieces_by_type[EMPTY], s);
     }
-    static gtr::char_string<256> print_bitboard(BitBoard board);
+    static gtr::large_string print_bitboard(BitBoard board);
+
+    template <PieceType T, Color C> /* Might be faster */
+    constexpr BitBoard get_piece_bitboard() const {
+        return pieces_by_type[T] & pieces_by_color[C];
+    }
+
+    constexpr BitBoard get_piece_bitboard(const PieceType t, const Color c) const { return pieces_by_type[t] & pieces_by_color[c]; }
 };
 } // namespace game

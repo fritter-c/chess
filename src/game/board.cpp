@@ -29,6 +29,7 @@ void Board::init() {
     state_history.push({});
     current_state().castle_rights = CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE;
     current_state().en_passant_index = -1;
+    current_state().castle_rights_bit = bitboard_from_squares<G1, G8, C1, C8>();
 }
 
 static bool board_can_move_basic(const Board *board, const uint8_t from_index, const uint8_t to_index) {
@@ -75,12 +76,22 @@ static void board_undo_castle(Board *board, const Move move) {
 
 static void update_rights(BoardState &state, Piece piece, const int32_t piece_row, const int32_t piece_col) {
     static constexpr std::array all_rights{~CASTLE_WHITE_ALL, ~CASTLE_BLACK_ALL};
+    static constexpr std::array all_rights_bit{~bitboard_from_squares<G1, C1>(), ~bitboard_from_squares<G8, C8>()};
     static constexpr std::array side_rights{std::array{~CASTLE_WHITE_KINGSIDE, ~CASTLE_BLACK_KINGSIDE}, std::array{~CASTLE_WHITE_QUEENSIDE, ~CASTLE_BLACK_QUEENSIDE}};
+    static constexpr std::array<std::array<BitBoard, 2>, COLOR_COUNT> side_rights_bit{
+        std::array{~bitboard_from_squares<G1>(), ~bitboard_from_squares<C1>()}, // White
+        std::array{~bitboard_from_squares<G8>(), ~bitboard_from_squares<C8>()}  // Black
+    };
+
     switch (PIECE_TYPE(piece)) {
-    case KING: state.castle_rights &= all_rights[PIECE_COLOR(piece)]; break;
+    case KING:
+        state.castle_rights &= all_rights[PIECE_COLOR(piece)];
+        state.castle_rights_bit &= all_rights_bit[PIECE_COLOR(piece)];
+        break;
     case ROOK:
         if (on_corner(piece_row, piece_col)) {
             state.castle_rights &= side_rights[piece_col == 0][PIECE_COLOR(piece)];
+            state.castle_rights_bit &= side_rights_bit[piece_col == 0][PIECE_COLOR(piece)];
         }
         break;
     default: break;
@@ -197,8 +208,8 @@ bool Board::undo_stateless(const BoardState &state) {
     return do_undo(*this, move, state);
 }
 
-gtr::char_string<128> Board::board_to_string() const {
-    gtr::char_string<128> board_str;
+gtr::large_string Board::board_to_string() const {
+    gtr::large_string board_str;
     for (int32_t row = 7; row >= 0; --row) {
         for (int32_t col = 0; col < 8; ++col) { board_str += piece_to_string_short(pieces[get_index(row, col)]); }
         board_str += "\n";
@@ -206,10 +217,10 @@ gtr::char_string<128> Board::board_to_string() const {
     return board_str;
 }
 
-gtr::char_string<256> Board::print_bitboard(const BitBoard board) {
-    gtr::char_string<256> board_str;
+gtr::large_string Board::print_bitboard(const BitBoard board) {
+    gtr::large_string board_str;
     for (int32_t row = 7; row >= 0; --row) {
-        board_str += gtr::format("%d. ",row + 1);
+        board_str += gtr::format("%d. ", row + 1);
         for (int32_t col = 0; col < 8; ++col) {
             if (bitboard_get(board, row, col)) {
                 board_str += "1 ";

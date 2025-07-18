@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "board.hpp"
 #include "move.hpp"
-#define BITBOARD_VERSION 0
+#define BITBOARD_VERSION 1
 namespace game {
 
 // Offsets for knight jumps:
@@ -87,169 +87,55 @@ static bool analyzer_add_move(Board *board, const int32_t from_row, const int32_
 }
 
 static void analyzer_get_pawn_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
-#if BITBOARD_VERSION
-    (void)piece;
-    const auto friendly = chess_piece_other_color(enemy);
-    const BitBoard emp = board->pieces_by_type[EMPTY];
-    const BitBoard enemy_bb = board->pieces_by_color[enemy];
-    const BitBoard origin_bb = static_cast<BitBoard>(1) << Board::get_index(row, col);
-    constexpr BitBoard not_file_a = 0xfefefefefefefefeULL;
-    constexpr BitBoard not_file_h = 0x7f7f7f7f7f7f7f7fULL;
-    auto record = [&](const BitBoard b) {
-        if (b) {
-            const int32_t t = std::countr_zero(b);
-            std::ignore = analyzer_add_move(board, row, col, t / 8, t % 8, moves, enemy);
-        }
-    };
+    const BitBoard empty = board->pieces_by_type[EMPTY];
+    const BitBoard enemy_pieces = board->pieces_by_color[enemy];
+    const int32_t inc = RowIncrement(~enemy);
+    const int32_t one_sq = (row + inc) * 8 + col;
+    const BitBoard one_bb = BitBoard(1) << one_sq;
+    const BitBoard first = one_bb & empty;
+    const BitBoard guard = BitBoard(0) - BitBoard((first >> one_sq) & 1ULL);
+    const BitBoard two_bb = PAWN_DOUBLE_STEP_POSITION[~enemy][row][col];
+    const BitBoard pawn_attacks = MAGIC_BOARD.pawn_attacks[~enemy][Board::square_index(row, col)];
+    const BitBoard en_passant_rank = bitboard_from_squares(board->current_state().en_passant_index);
 
-    if (friendly == PIECE_WHITE) {
-        record(origin_bb << 8 & emp);
-        if (row == RANK_2)
-            record((origin_bb << 8 & emp) << 8 & emp);
-
-        // captures
-        record(origin_bb << 7 & enemy_bb & not_file_h);
-        record(origin_bb << 9 & enemy_bb & not_file_a);
-
-        // en passant
-        if (const int8_t ep = board->current_state().en_passant_index; ep >= 0) {
-            const BitBoard epb = static_cast<BitBoard>(1) << static_cast<uint8_t>(ep);
-            record(origin_bb << 7 & epb & not_file_h);
-            record(origin_bb << 9 & epb & not_file_a);
-        }
-    } else {
-        // 1‐step
-        record((origin_bb >> 8) & emp);
-        // 2‐step
-        if (row == RANK_7)
-            record((origin_bb >> 8 & emp) >> 8 & emp);
-
-        // captures
-        record(origin_bb >> 9 & enemy_bb & not_file_h);
-        record(origin_bb >> 7 & enemy_bb & not_file_a);
-
-        // en passant
-        if (const int8_t ep = board->current_state().en_passant_index; ep >= 0) {
-            const BitBoard epb = static_cast<BitBoard>(1) << static_cast<uint8_t>(ep);
-            record(origin_bb >> 9 & epb & not_file_h);
-            record(origin_bb >> 7 & epb & not_file_a);
-        }
-    }
-#else
-    const auto friendly = PIECE_COLOR(piece);
-    const int32_t dir = friendly == PIECE_WHITE ? 1 : -1;
-    // one-step
-    const int32_t r1 = row + dir;
-    if (const int32_t c1 = col; r1 >= RANK_1 && r1 < RANK_COUNT && PIECE_TYPE(board->pieces[Board::get_index(r1, c1)]) == EMPTY) {
-        std::ignore = analyzer_add_move(board, row, col, r1, c1, moves, enemy);
-        // two-step from home rank
-        if (const int32_t r2 = row + 2 * dir; Board::pawn_first_move(piece, row) && PIECE_TYPE(board->pieces[Board::get_index(r2, c1)]) == EMPTY) {
-            std::ignore = analyzer_add_move(board, row, col, r2, c1, moves, enemy);
-        }
-    }
-    // captures
-    for (const int32_t dc : {-1, +1}) {
-        const int32_t c2 = col + dc;
-        const int32_t r2 = row + dir;
-        if (r2 < RANK_1 || r2 >= RANK_COUNT || c2 < FILE_A || c2 >= FILE_COUNT) {
-            continue;
-        }
-        if (const auto p = board->pieces[Board::get_index(r2, c2)]; PIECE_TYPE(p) != EMPTY && PIECE_COLOR(p) == enemy) {
-            std::ignore = analyzer_add_move(board, row, col, r2, c2, moves, enemy);
-        }
-    }
-
-    // en passant
-    // No need to check if the target square is empty because en passant captures are only valid
-    // if the pawn has just moved two squares forward, which means the target square must be
-    // empty at the moment of the en passant capture.
-    if (PIECE_COLOR(piece) == PIECE_WHITE && row == RANK_5) {
-        // Check for en passant capture to the left
-        if (board->can_en_passant_this(row, col - 1, enemy)) {
-            std::ignore = analyzer_add_move(board, row, col, row + 1, col - 1, moves, enemy); // Capture to the left
-        }
-        // Check for en passant capture to the right
-        if (board->can_en_passant_this(row, col + 1, enemy)) {
-            std::ignore = analyzer_add_move(board, row, col, row + 1, col + 1, moves, enemy);
-        }
-    } else if (PIECE_COLOR(piece) == PIECE_BLACK && row == RANK_4) {
-        // Check for en passant capture to the left
-        if (board->can_en_passant_this(row, col - 1, enemy)) {
-            std::ignore = analyzer_add_move(board, row, col, row - 1, col - 1, moves, enemy); // Capture to the left
-        }
-        // Check for en passant capture to the right
-        if (board->can_en_passant_this(row, col + 1, enemy)) {
-            std::ignore = analyzer_add_move(board, row, col, row - 1, col + 1, moves, enemy);
-        }
-    }
-#endif
+    moves.bits |= first;
+    moves.bits |= two_bb & empty & guard;
+    moves.bits |= pawn_attacks & enemy_pieces;
+    moves.bits |= pawn_attacks & en_passant_rank;
 }
 
 static void analyzer_get_king_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
-    using enum PieceType;
-    const auto friendly = PIECE_COLOR(piece);
-    for (auto [dr, dc] : KING_DELTAS) {
-        const int32_t r = row + dr;
-        const int32_t c = col + dc;
-        if (r < RANK_1 || r >= RANK_COUNT || c < FILE_A || c >= FILE_COUNT)
-            continue;
-        std::ignore = analyzer_add_move(board, row, col, r, c, moves, enemy);
-    }
+    const BitBoard king_attacks = MAGIC_BOARD.king_attacks[Board::square_index(row, col)];
+    const Color side = ~enemy;
+    const BitBoard empty = board->pieces_by_type[EMPTY];
+    const BitBoard ks_between = CASTLE_KING_EMPTY[std::to_underlying(side)];
+    const BitBoard ks_dest = CASTLE_KING_DEST[std::to_underlying(side)];
+    const BitBoard qs_between = CASTLE_QUEEN_EMPTY[std::to_underlying(side)];
+    const BitBoard qs_dest = CASTLE_QUEEN_DEST[std::to_underlying(side)];
 
-    // Kingside castling
-    if (!analyzer_is_color_in_check(board, friendly)) {
-        const uint8_t king_row = friendly ? 7 : 0;
-        if (PIECE_TYPE(board->pieces[Board::get_index(king_row, 5)]) == EMPTY && PIECE_TYPE(board->pieces[Board::get_index(king_row, 6)]) == EMPTY &&
-            PIECE_TYPE(board->pieces[Board::get_index(king_row, 7)]) == ROOK && PIECE_COLOR(board->pieces[Board::get_index(king_row, 7)]) == friendly &&
-            board->castle_rights_for(friendly, true) && !analyzer_is_cell_under_attack_by_color(board, king_row, 5, chess_piece_other_color(friendly)) &&
-            !analyzer_is_cell_under_attack_by_color(board, king_row, 6, chess_piece_other_color(friendly))) {
-            moves.set(king_row, 6); // Castling move to g1
-        }
-
-        // Queenside castling
-        if (PIECE_TYPE(board->pieces[Board::get_index(king_row, 3)]) == EMPTY && PIECE_TYPE(board->pieces[Board::get_index(king_row, 2)]) == EMPTY &&
-            PIECE_TYPE(board->pieces[Board::get_index(king_row, 1)]) == EMPTY && PIECE_TYPE(board->pieces[Board::get_index(king_row, 0)]) == ROOK &&
-            PIECE_COLOR(board->pieces[Board::get_index(king_row, 0)]) == friendly && board->castle_rights_for(friendly, false) &&
-            !analyzer_is_cell_under_attack_by_color(board, king_row, 3, chess_piece_other_color(friendly)) &&
-            !analyzer_is_cell_under_attack_by_color(board, king_row, 2, chess_piece_other_color(friendly)) &&
-            !analyzer_is_cell_under_attack_by_color(board, king_row, 1, chess_piece_other_color(friendly))) {
-            moves.set(king_row, 2); // Castling move to c1
-        }
-    }
-}
-
-static void analyzer_get_sliders_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
-    for (auto [dr, dc] : KING_DELTAS) {
-        // skip impossible increment for ROOK and BISHOP
-        if (PIECE_TYPE(piece) == ROOK && dr != 0 && dc != 0)
-            continue;
-        if (PIECE_TYPE(piece) == BISHOP && (dr == 0 || dc == 0))
-            continue;
-
-        int32_t r = row + dr;
-        int32_t c = col + dc;
-        auto is_enemy_next = [&r, &c, &board, &enemy]() {
-            return PIECE_TYPE(board->pieces[Board::get_index(r, c)]) != EMPTY && PIECE_COLOR(board->pieces[Board::get_index(r, c)]) == enemy;
-        };
-        // add until a move is blocked or encounters an enemy piece
-        while (analyzer_add_move(board, row, col, r, c, moves, enemy) && !is_enemy_next()) {
-            r += dr;
-            c += dc;
-        }
-    }
+    moves.bits |= ((empty & qs_between) == qs_between) * qs_dest & board->current_state().castle_rights_bit;
+    moves.bits |= ((empty & ks_between) == ks_between) * ks_dest & board->current_state().castle_rights_bit;
+    moves.bits |= king_attacks & (board->pieces_by_color[enemy] | board->pieces_by_type[EMPTY]);
 }
 
 static void analyzer_get_knight_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
-    (void)piece;
-    for (auto [dr, dc] : KNIGHT_DELTAS) {
-        const int32_t r = row + dr;
-        const int32_t c = col + dc;
-        if (r < RANK_1 || r >= RANK_COUNT || c < FILE_A || c >= FILE_COUNT)
-            continue;
-        const auto p = board->pieces[Board::get_index(r, c)];
-        if (PIECE_TYPE(p) == EMPTY || PIECE_COLOR(p) == enemy)
-            analyzer_add_move(board, row, col, r, c, moves, enemy);
-    }
+    const BitBoard knight_attacks = MAGIC_BOARD.knight_attackers[Board::square_index(row, col)];
+    moves.bits |= knight_attacks & (board->pieces_by_color[enemy] | board->pieces_by_type[EMPTY]);
+}
+
+static void analyzer_get_bishop_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
+    const BitBoard bishop_attacks = MAGIC_BOARD.bishop_attacks[Board::square_index(row, col)];
+    moves.bits |= bishop_attacks;
+}
+
+static void analyzer_get_rook_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
+    const BitBoard rook_attacks = MAGIC_BOARD.rook_attacks[Board::square_index(row, col)];
+    moves.bits |= rook_attacks;
+}
+
+static void analyzer_get_queen_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
+    const BitBoard queen_attacks = MAGIC_BOARD.queen_attacks(Board::square_index(row, col));
+    moves.bits |= queen_attacks;
 }
 
 AvailableMoves analyzer_get_available_moves_for_piece(Board *board, const int32_t row, const int32_t col) {
@@ -261,9 +147,9 @@ AvailableMoves analyzer_get_available_moves_for_piece(Board *board, const int32_
         switch (PIECE_TYPE(piece)) {
         case PAWN  : analyzer_get_pawn_moves(board, piece, row, col, enemy_color, moves); break;
         case KNIGHT: analyzer_get_knight_moves(board, piece, row, col, enemy_color, moves); break;
-        case BISHOP:
-        case ROOK  :
-        case QUEEN : analyzer_get_sliders_moves(board, piece, row, col, enemy_color, moves); break;
+        case BISHOP: analyzer_get_bishop_moves(board, piece, row, col, enemy_color, moves); break;
+        case ROOK  : analyzer_get_rook_moves(board, piece, row, col, enemy_color, moves); break;
+        case QUEEN : analyzer_get_queen_moves(board, piece, row, col, enemy_color, moves); break;
         case KING  : analyzer_get_king_moves(board, piece, row, col, enemy_color, moves); break;
         default    : break;
         }
@@ -272,21 +158,9 @@ AvailableMoves analyzer_get_available_moves_for_piece(Board *board, const int32_
 }
 
 bool analyzer_is_color_in_check(Board *board, Color color) {
-    uint8_t kr = 0xFF;
-    uint8_t kc = 0xFF;
-    for (uint8_t r = 0; r < RANK_COUNT; ++r)
-        for (uint8_t c = 0; c < FILE_COUNT; ++c) {
-            const auto p = board->pieces[Board::get_index(r, c)];
-            if (PIECE_TYPE(p) == KING && PIECE_COLOR(p) == color) {
-                kr = r;
-                kc = c;
-                break;
-            }
-        }
-
-    if (kr == 0xFF || kc == 0xFF)
-        return false; // No king found, cannot be in check
-
+    const int32_t index = bitboard_index(board->pieces_by_type[KING] & board->pieces_by_color[color]);
+    const int32_t kr = Board::get_row(index);
+    const int32_t kc = Board::get_col(index);
     return analyzer_is_cell_under_attack_by_color(board, kr, kc, chess_piece_other_color(color));
 }
 

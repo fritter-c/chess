@@ -1505,5 +1505,6 @@ template <int32_t N = 64> char_string<N> format(const char *format, ...) {
 }
 
 using string = char_string<64>;
+using large_string = char_string<256>;
 } // namespace gtr
 #endif

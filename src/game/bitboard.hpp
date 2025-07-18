@@ -106,4 +106,44 @@ consteval MagicBoards init_magic_boards() noexcept {
 
     return mb;
 }
+
+constexpr BitBoard FileA = 0x0101010101010101ULL;
+constexpr BitBoard FileB = 0x0202020202020202ULL;
+constexpr BitBoard FileC = 0x0404040404040404ULL;
+constexpr BitBoard FileD = 0x0808080808080808ULL;
+constexpr BitBoard FileE = 0x1010101010101010ULL;
+constexpr BitBoard FileF = 0x2020202020202020ULL;
+constexpr BitBoard FileG = 0x4040404040404040ULL;
+constexpr BitBoard FileH = 0x8080808080808080ULL;
+
+constexpr BitBoard Rank1 = 0x00000000000000FFULL;
+constexpr BitBoard Rank2 = 0x000000000000FF00ULL;
+constexpr BitBoard Rank3 = 0x0000000000FF0000ULL;
+constexpr BitBoard Rank4 = 0x00000000FF000000ULL;
+constexpr BitBoard Rank5 = 0x000000FF00000000ULL;
+constexpr BitBoard Rank6 = 0x0000FF0000000000ULL;
+constexpr BitBoard Rank7 = 0x00FF000000000000ULL;
+constexpr BitBoard Rank8 = 0xFF00000000000000ULL;
+
+constexpr BitBoard NotFileA = ~FileA;
+constexpr BitBoard NotFileB = ~FileB;
+constexpr BitBoard NotFileC = ~FileC;
+constexpr BitBoard NotFileD = ~FileD;
+constexpr BitBoard NotFileE = ~FileE;
+constexpr BitBoard NotFileF = ~FileF;
+constexpr BitBoard NotFileG = ~FileG;
+constexpr BitBoard NotFileH = ~FileH;
+
+constexpr BitBoard NotRank1 = ~Rank1;
+constexpr BitBoard NotRank2 = ~Rank2;
+constexpr BitBoard NotRank3 = ~Rank3;
+constexpr BitBoard NotRank4 = ~Rank4;
+constexpr BitBoard NotRank5 = ~Rank5;
+constexpr BitBoard NotRank6 = ~Rank6;
+constexpr BitBoard NotRank7 = ~Rank7;
+constexpr BitBoard NotRank8 = ~Rank8;
+
+static constexpr std::array<BitBoard, 8> BITBOARD_FILES = {FileA, FileB, FileC, FileD, FileE, FileF, FileG, FileH};
+static constexpr std::array<BitBoard, 8> BITBOARD_RANKS = {Rank1, Rank2, Rank3, Rank4, Rank5, Rank6, Rank7, Rank8};
+
 } // namespace game
