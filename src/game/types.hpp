@@ -32,34 +32,34 @@ using RankArray = std::array<Piece, static_cast<std::size_t>(std::to_underlying(
 using BoardArray = std::array<RankArray, static_cast<std::size_t>(std::to_underlying(RANK_COUNT))>;
 // clang-format off
 static constexpr BoardArray StartingPosition{{RankArray{{WHITE_ROOK, WHITE_KNIGHT, WHITE_BISHOP, WHITE_QUEEN, WHITE_KING, WHITE_BISHOP, WHITE_KNIGHT, WHITE_ROOK}},
-                                              RankArray{{WHITE_PAWN, WHITE_PAWN, WHITE_PAWN, WHITE_PAWN, WHITE_PAWN, WHITE_PAWN, WHITE_PAWN, WHITE_PAWN}},
-                                              RankArray{{PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE}},
-                                              RankArray{{PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE}},
-                                              RankArray{{PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE}},
-                                              RankArray{{PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE}},
-                                              RankArray{{BLACK_PAWN, BLACK_PAWN, BLACK_PAWN, BLACK_PAWN, BLACK_PAWN, BLACK_PAWN, BLACK_PAWN, BLACK_PAWN}},
-                                              RankArray{{BLACK_ROOK, BLACK_KNIGHT, BLACK_BISHOP, BLACK_QUEEN, BLACK_KING, BLACK_BISHOP, BLACK_KNIGHT, BLACK_ROOK}}}};
-// clang-format on
+                                                 RankArray{{WHITE_PAWN, WHITE_PAWN, WHITE_PAWN, WHITE_PAWN, WHITE_PAWN, WHITE_PAWN, WHITE_PAWN, WHITE_PAWN}},
+                                                 RankArray{{PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE}},
+                                                 RankArray{{PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE}},
+                                                 RankArray{{PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE}},
+                                                 RankArray{{PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE, PIECE_NONE}},
+                                                 RankArray{{BLACK_PAWN, BLACK_PAWN, BLACK_PAWN, BLACK_PAWN, BLACK_PAWN, BLACK_PAWN, BLACK_PAWN, BLACK_PAWN}},
+                                                 RankArray{{BLACK_ROOK, BLACK_KNIGHT, BLACK_BISHOP, BLACK_QUEEN, BLACK_KING, BLACK_BISHOP, BLACK_KNIGHT, BLACK_ROOK}}}};
+
 using NameRank = std::array<const char *, static_cast<std::size_t>(std::to_underlying(FILE_COUNT))>;
 using NameArray = std::array<NameRank, static_cast<std::size_t>(std::to_underlying(RANK_COUNT))>;
-// clang-format off
-static constexpr NameArray CellNames{{NameRank{{"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1"}},
-                                      NameRank{{"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2"}},
-                                      NameRank{{"a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3"}},
-                                      NameRank{{"a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4"}},
-                                      NameRank{{"a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5"}},
-                                      NameRank{{"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6"}},
-                                      NameRank{{"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7"}},
-                                      NameRank{{"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8"}}}};
 
-static constexpr const char* CellNamesC[] {"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
-                                           "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
-                                           "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
-                                           "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
-                                           "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
-                                           "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
-                                           "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
-                                           "a8", "b8", "c8", "d8", "e8", "f8", "g8"};
+static constexpr NameArray CellNames{{NameRank{{"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1"}},
+                                         NameRank{{"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2"}},
+                                         NameRank{{"a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3"}},
+                                         NameRank{{"a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4"}},
+                                         NameRank{{"a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5"}},
+                                         NameRank{{"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6"}},
+                                         NameRank{{"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7"}},
+                                         NameRank{{"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8"}}}};
+
+static constexpr std::array CellNamesC {"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+                                        "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
+                                        "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+                                        "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
+                                        "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+                                        "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
+                                        "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+                                        "a8", "b8", "c8", "d8", "e8", "f8", "g8"};
 // clang-format on
 
 constexpr int32_t square_file(const SquareIndex sq) noexcept { return static_cast<int32_t>(std::to_underlying(sq)) & 7; }
@@ -96,7 +96,7 @@ constexpr void bitboard_move_bit(BitBoard &b, const uint32_t from_square, const 
     b = b & ~(static_cast<BitBoard>(1) << from_square) | static_cast<BitBoard>(1) << to_square;
 }
 
-inline uint8_t bitboard_extract_rank(BitBoard bb, int32_t r) noexcept { return static_cast<uint8_t>((bb >> (r * 8)) & RANK_MASK); }
+inline uint8_t bitboard_extract_rank(const BitBoard bb, const int32_t r) noexcept { return static_cast<uint8_t>(bb >> (r * 8) & RANK_MASK); }
 
 template <uint32_t... Squares> constexpr BitBoard bitboard_from_squares() noexcept {
     BitBoard bit = 0;
@@ -110,10 +110,9 @@ template <int = 0, typename... Squares> constexpr BitBoard bitboard_from_squares
     return bit;
 }
 
-
-inline int32_t bitboard_index(BitBoard bb) noexcept {
+inline int32_t bitboard_index(const BitBoard bb) noexcept {
     Assert(bb != 0 && std::has_single_bit(bb), "bitboard_index: expected exactly one bit set");
-    return static_cast<int32_t>(std::countr_zero(bb));
+    return std::countr_zero(bb);
 }
 
 enum BitBoardDirection : int8_t {
@@ -152,11 +151,15 @@ struct MagicBoards {
     std::array<std::array<BitBoard, 64>, 2> pawn_attacks;
     std::array<BitBoard, 64> knight_attacks;
     std::array<BitBoard, 64> king_attacks;
+
+    // reverse
+    std::array<std::array<BitBoard, 64>, 2> pawn_attackers;
+    std::array<BitBoard, 64> knight_attackers;
+    std::array<BitBoard, 64> king_attackers;
+
     std::array<BitBoard, 64> bishop_attacks;
     std::array<BitBoard, 64> rook_attacks;
-    // Queen attacks bishop_attacks | rook_attacks
-
-    BitBoard queen_attacks(SquareIndex sq) const noexcept { return bishop_attacks[sq] | rook_attacks[sq]; }
+    BitBoard queen_attacks(const SquareIndex sq) const noexcept { return bishop_attacks[sq] | rook_attacks[sq]; }
 
     std::array<BitBoard, 64> bishop_occupancy_mask;
     std::array<BitBoard, 64> rook_occupancy_mask;

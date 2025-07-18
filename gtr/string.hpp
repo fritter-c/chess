@@ -387,7 +387,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      *
      * @param str The text object to move from.
      */
-    char_string(char_string &&str) noexcept(std::allocator_traits<Allocator>::is_always_equal::value ||
+    char_string(char_string &&str) noexcept (std::allocator_traits<Allocator>::is_always_equal::value ||
                                             std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value)
         : container_base<Allocator>((std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<Allocator>::is_always_equal::value)
                                         ? std::move(str.allocator())
@@ -1266,7 +1266,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
     char_string upper() {
         char_string result;
         result.resize(size());
-        value_type *data_ptr = local_data() ? data : get_pointer();
+        value_type const *data_ptr = local_data() ? data : get_pointer();
         value_type *result_ptr = result.local_data() ? result.data : result.get_pointer();
         for (uint64_t i = 0; i < size(); ++i) { result_ptr[i] = static_cast<char>(std::toupper(data_ptr[i])); }
         result_ptr[size()] = '\0';
@@ -1281,7 +1281,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
     char_string lower() {
         char_string result;
         result.resize(size());
-        value_type *data_ptr = local_data() ? data : get_pointer();
+        value_type const *data_ptr = local_data() ? data : get_pointer();
         value_type *result_ptr = result.local_data() ? result.data : result.get_pointer();
         for (uint64_t i = 0; i < size(); ++i) { result_ptr[i] = static_cast<char>(std::tolower(data_ptr[i])); }
         result_ptr[size()] = '\0';
@@ -1479,7 +1479,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
 
     bool operator==(const value_type *str) const {
         const value_type *data_ptr = local_data() ? data : get_pointer();
-        return std::strncmp(data_ptr, str, std::max(static_cast<uint64_t>(std::strlen(str)), size())) == 0;
+        return std::strncmp(data_ptr, str, std::max(std::strlen(str), size())) == 0;
     }
 
     /**

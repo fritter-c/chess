@@ -39,6 +39,35 @@ consteval MagicBoards init_magic_boards() noexcept {
                                             std::pair{-2, +2}, std::pair{+3, +3}, std::pair{-3, -3}, std::pair{+3, -3}, std::pair{-3, +3}, std::pair{+4, +4}, std::pair{-4, -4},
                                             std::pair{+4, -4}, std::pair{-4, +4}, std::pair{+5, +5}, std::pair{-5, -5}, std::pair{+5, -5}, std::pair{-5, +5}, std::pair{+6, +6},
                                             std::pair{-6, -6}, std::pair{+6, -6}, std::pair{-6, +6}, std::pair{+7, +7}, std::pair{-7, -7}, std::pair{+7, -7}, std::pair{-7, +7}});
+
+        const BitBoard from_bb = BitBoard{1} << sq;
+
+        // pawn_attackers (for both colors)
+        for (int color = 0; color < 2; ++color) {
+            const BitBoard fw = mb.pawn_attacks[color][sq];
+            for (int t = 0; t < 64; ++t) {
+                if (fw & (BitBoard{1} << t))
+                    mb.pawn_attackers[color][t] |= from_bb;
+            }
+        }
+
+        // knight_attackers
+        {
+            const BitBoard fw = mb.knight_attacks[sq];
+            for (int t = 0; t < 64; ++t) {
+                if (fw & (BitBoard{1} << t))
+                    mb.knight_attackers[t] |= from_bb;
+            }
+        }
+
+        // king_attackers
+        {
+            const BitBoard fw = mb.king_attacks[sq];
+            for (int t = 0; t < 64; ++t) {
+                if (fw & (BitBoard{1} << t))
+                    mb.king_attackers[t] |= from_bb;
+            }
+        }
     }
 
     constexpr std::array<std::pair<int, int>, 4> rook_dirs{{{+1, 0}, {-1, 0}, {0, +1}, {0, -1}}};
@@ -77,4 +106,4 @@ consteval MagicBoards init_magic_boards() noexcept {
 
     return mb;
 }
-}
+} // namespace game

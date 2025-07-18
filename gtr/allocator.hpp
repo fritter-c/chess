@@ -16,13 +16,13 @@ template <typename T> struct c_allocator {
     using is_always_equal = std::true_type; // Stateless allocator, always equal
     constexpr c_allocator select_on_container_copy_construction() const noexcept { return *this; }
 
-    T *allocate(size_type n) { return malloc(n); }
-    T *reallocate(T *ptr, const size_type size, const size_type old_size) { return realloc(ptr, size, old_size); }
-    void deallocate(T *p, const size_type n) { return free(p, n); }
+    T *allocate(const size_type n) const { return malloc(n); }
+    T *reallocate(T *ptr, const size_type size, const size_type old_size) const { return realloc(ptr, size, old_size); }
+    void deallocate(T *p, const size_type n) const { return free(p, n); }
 
-    T *malloc(const size_type size) { return static_cast<T *>(std::malloc(size * sizeof(T))); }
-    T *realloc(T *ptr, const size_type size, const size_type old_size) {(void)old_size;return static_cast<T *>(std::realloc(ptr, size * sizeof(T)));}
-    void free(T *ptr, const size_type size) { (void)size, std::free(ptr); }
+    T *malloc(const size_type size) const { return static_cast<T *>(std::malloc(size * sizeof(T))); }
+    T *realloc(T *ptr, const size_type size, const size_type old_size) const {(void)old_size;return static_cast<T *>(std::realloc(ptr, size * sizeof(T)));}
+    void free(T *ptr, const size_type size) const { (void)size, std::free(ptr); }
 
     constexpr c_allocator() noexcept = default;
     constexpr ~c_allocator() = default;
@@ -52,13 +52,13 @@ template <typename T, uint64_t Alignment = alignof(max_align_t) > struct aligned
     using is_always_equal = std::true_type; // Stateless allocator, always equal
     constexpr aligned_allocator select_on_container_copy_construction() const noexcept { return *this; }
 
-    T *allocate(size_type n) { return malloc(n); }
-    T *reallocate(T *ptr, const size_type size, const size_type old_size) { return realloc(ptr, size, old_size); }
-    void deallocate(T *p, const size_type n) { return free(p, n); }
+    T *allocate(size_type n) const { return malloc(n); }
+    T *reallocate(T *ptr, const size_type size, const size_type old_size) const { return realloc(ptr, size, old_size); }
+    void deallocate(T *p, const size_type n) const { return free(p, n); }
 
-    T *malloc(uint64_t size) { return static_cast<T *>(ALIGNED_ALLOC(size * sizeof(T), Alignment)); }
-    T *realloc(T *ptr, uint64_t size, uint64_t old_size) {auto new_ptr = ALIGNED_ALLOC(size, Alignment); memcpy(new_ptr, ptr, old_size); ALIGNED_FREE(ptr); return new_ptr; }
-    void free(void *ptr, uint64_t size) { (void)size, ALIGNED_FREE(ptr); }
+    T *malloc(const uint64_t size) const { return static_cast<T *>(ALIGNED_ALLOC(size * sizeof(T), Alignment)); }
+    T *realloc(T *ptr,const uint64_t size,const uint64_t old_size) const {auto new_ptr = ALIGNED_ALLOC(size, Alignment); memcpy(new_ptr, ptr, old_size); ALIGNED_FREE(ptr); return new_ptr; }
+    void free(T *ptr,const uint64_t size) const { (void)size, ALIGNED_FREE(ptr); }
 
     constexpr aligned_allocator() noexcept = default;
     ~aligned_allocator() = default;

@@ -48,6 +48,8 @@ struct Board {
 
     static constexpr int32_t get_index(const int32_t row, const int32_t col) { return row * 8 + col; }
 
+    static constexpr SquareIndex square_index(const int32_t row, const int32_t col) { return static_cast<SquareIndex>(get_index(row, col)); }
+
     static constexpr int32_t get_row(const int32_t index) { return index / 8; }
 
     static constexpr int32_t get_col(const int32_t index) { return index % 8; }

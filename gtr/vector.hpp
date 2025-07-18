@@ -892,18 +892,6 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
     }
 
     /**
-     * @brief Overloaded inequality operator for comparing vectors.
-     *
-     * This operator compares the elements of the current vector with those of another vector
-     * for inequality. It returns true if the size or elements of the vectors are not equal,
-     * and false otherwise.
-     *
-     * @param other The vector to compare with.
-     * @return bool True if the vectors are not equal, false otherwise.
-     */
-    bool operator!=(const vector &other) const { return !(*this == other); }
-
-    /**
      * @brief Compares this vector with another vector for ordering.
      *
      * This operator performs a lexicographical comparison between the elements

@@ -1,8 +1,6 @@
 #include "analyzer.hpp"
-#include <algorithm>
 #include <array>
 #include <cstdint>
-#include "bitboard.hpp"
 #include "board.hpp"
 #include "move.hpp"
 #define BITBOARD_VERSION 0
@@ -12,33 +10,17 @@ namespace game {
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KNIGHT_DELTAS = {{{+2, +1}, {+2, -1}, {-2, +1}, {-2, -1}, {+1, +2}, {+1, -2}, {-1, +2}, {-1, -2}}};
 // Offsets for king moves (also used for pawn attack deltas and sliders' increment):
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KING_DELTAS = {{{+1, 0}, {-1, 0}, {0, +1}, {0, -1}, {+1, +1}, {+1, -1}, {-1, +1}, {-1, -1}}};
-// Offsets for pawn position attacks(By color):
-static constexpr std::array pawn_attack_cols = {-1, +1}; // -1 for white, +1 for black
 
-static bool analyzer_is_pawn_attacking(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
-    const int32_t from_row = row + pawn_attack_cols[attacker];
-    if (from_row < 0 || from_row >= RANK_COUNT) // no such rank
-        return false;
-    const BitBoard pawn_bb = board->pieces_by_type[PAWN] & board->pieces_by_color[attacker];
-    const uint8_t pawn_rank = bitboard_extract_rank(pawn_bb, from_row);
-    const uint16_t mask10 = (uint16_t{0b101} << col) >> 1;
-    return (pawn_rank & static_cast<uint8_t>(mask10)) != 0;
+static bool analyzer_is_pawn_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+    return MAGIC_BOARD.pawn_attackers[attacker][index] & board->pieces_by_type[PAWN] & board->pieces_by_color[attacker];
 }
 
-static bool analyzer_is_knight_attacking(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
-    const BitBoard knight_bb = board->pieces_by_type[KNIGHT] & board->pieces_by_color[attacker];
-    const BitBoard target_bb = static_cast<BitBoard>(1) << Board::get_index(row, col);
-    
-    for (auto [dr, dc] : KNIGHT_DELTAS) {
-        const int32_t r = row + dr;
-        const int32_t c = col + dc;
-        if (r >= 0 && r < 8 && c >= 0 && c < 8) {
-            auto p = board->pieces[Board::get_index(r, c)];
-            if (PIECE_TYPE(p) == KNIGHT && PIECE_COLOR(p) == attacker)
-                return true;
-        }
-    }
-    return false;
+static bool analyzer_is_knight_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+    return MAGIC_BOARD.knight_attackers[index] & board->pieces_by_type[KNIGHT] & board->pieces_by_color[attacker];
+}
+
+static bool analyzer_is_king_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+    return MAGIC_BOARD.king_attackers[index] & board->pieces_by_type[KING] & board->pieces_by_color[attacker];
 }
 
 static bool analyzer_is_slider_attacking(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
@@ -66,24 +48,10 @@ static bool analyzer_is_slider_attacking(const Board *board, const int32_t row, 
     return false;
 }
 
-static bool analyzer_is_king_attacking(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
-    return MAGIC_BOARD.king_attacks[bitboard_index(board->pieces_by_type[KING] & board->pieces_by_color[attacker])] & (static_cast<BitBoard>(1) << Board::get_index(row, col));
-}
-
 bool analyzer_is_cell_under_attack_by_color(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
-    if (analyzer_is_pawn_attacking(board, row, col, attacker)) {
-        return true;
-    }
-
-    if (analyzer_is_knight_attacking(board, row, col, attacker)) {
-        return true;
-    }
-
-    if (analyzer_is_slider_attacking(board, row, col, attacker)) {
-        return true;
-    }
-
-    return analyzer_is_king_attacking(board, row, col, attacker);
+    const SquareIndex cell = Board::square_index(row, col);
+    return analyzer_is_knight_attacking(board, cell, attacker) || analyzer_is_king_attacking(board, cell, attacker) || analyzer_is_pawn_attacking(board, cell, attacker) ||
+           analyzer_is_slider_attacking(board, row, col, attacker);
 }
 
 static bool analyzer_add_move(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row, const int32_t to_col, AvailableMoves &moves, const Color enemy) {
@@ -130,7 +98,7 @@ static void analyzer_get_pawn_moves(Board *board, const Piece piece, const int32
     auto record = [&](const BitBoard b) {
         if (b) {
             const int32_t t = std::countr_zero(b);
-            moves.set(t / 8, t % 8);
+            std::ignore = analyzer_add_move(board, row, col, t / 8, t % 8, moves, enemy);
         }
     };
 
@@ -169,7 +137,7 @@ static void analyzer_get_pawn_moves(Board *board, const Piece piece, const int32
     }
 #else
     const auto friendly = PIECE_COLOR(piece);
-    const int32_t dir = (friendly == PIECE_WHITE ? 1 : -1);
+    const int32_t dir = friendly == PIECE_WHITE ? 1 : -1;
     // one-step
     const int32_t r1 = row + dir;
     if (const int32_t c1 = col; r1 >= RANK_1 && r1 < RANK_COUNT && PIECE_TYPE(board->pieces[Board::get_index(r1, c1)]) == EMPTY) {
@@ -271,7 +239,7 @@ static void analyzer_get_sliders_moves(Board *board, const Piece piece, const in
     }
 }
 
-static void analyzer_get_poney_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
+static void analyzer_get_knight_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
     (void)piece;
     for (auto [dr, dc] : KNIGHT_DELTAS) {
         const int32_t r = row + dr;
@@ -292,7 +260,7 @@ AvailableMoves analyzer_get_available_moves_for_piece(Board *board, const int32_
         const auto enemy_color = chess_piece_other_color(PIECE_COLOR(piece));
         switch (PIECE_TYPE(piece)) {
         case PAWN  : analyzer_get_pawn_moves(board, piece, row, col, enemy_color, moves); break;
-        case KNIGHT: analyzer_get_poney_moves(board, piece, row, col, enemy_color, moves); break;
+        case KNIGHT: analyzer_get_knight_moves(board, piece, row, col, enemy_color, moves); break;
         case BISHOP:
         case ROOK  :
         case QUEEN : analyzer_get_sliders_moves(board, piece, row, col, enemy_color, moves); break;
@@ -368,11 +336,6 @@ int32_t analyzer_get_move_count(Board *board, Color color) {
 
 bool analyzer_get_is_stalemate(Board *board, Color friendly) { return analyzer_get_move_count(board, friendly) == 0 && !analyzer_is_color_in_checkmate(board, friendly); }
 
-static bool square_is_light(const int32_t sq) {
-    // a1 = dark (0,0)->0, (row+col)&1 == 1 => light
-    return (Board::get_row(sq) + Board::get_col(sq) & 1) != 0;
-}
-
 bool analyzer_is_insufficient_material(const Board *board) {
     using std::popcount;
 
@@ -385,25 +348,25 @@ bool analyzer_is_insufficient_material(const Board *board) {
         return false;
 
     // 2) get the bitboards of bishops and knights
-    BitBoard bishop_bb = board->pieces_by_type[BISHOP];
-    BitBoard knight_bb = board->pieces_by_type[KNIGHT];
+    const BitBoard bishop_bb = board->pieces_by_type[BISHOP];
+    const BitBoard knight_bb = board->pieces_by_type[KNIGHT];
 
     // 3) split them by color
-    BitBoard white_bb = board->pieces_by_color[PIECE_WHITE];
-    BitBoard black_bb = board->pieces_by_color[PIECE_BLACK];
+    const BitBoard white_bb = board->pieces_by_color[PIECE_WHITE];
+    const BitBoard black_bb = board->pieces_by_color[PIECE_BLACK];
 
     // count each
-    int32_t white_bishops = popcount(bishop_bb & white_bb);
-    int32_t black_bishops = popcount(bishop_bb & black_bb);
-    int32_t white_knights = popcount(knight_bb & white_bb);
-    int32_t black_knights = popcount(knight_bb & black_bb);
+    const int32_t white_bishops = popcount(bishop_bb & white_bb);
+    const int32_t black_bishops = popcount(bishop_bb & black_bb);
+    const int32_t white_knights = popcount(knight_bb & white_bb);
+    const int32_t black_knights = popcount(knight_bb & black_bb);
 
-    int32_t white_minors = white_bishops + white_knights;
-    int32_t black_minors = black_bishops + black_knights;
-    int32_t total_minors = white_minors + black_minors;
+    const int32_t white_minors = white_bishops + white_knights;
+    const int32_t black_minors = black_bishops + black_knights;
+    const int32_t total_minors = white_minors + black_minors;
 
     // 4) the same three insufficient‐material cases:
-    //    K vs K
+    //    K vs. K
     if (total_minors == 0)
         return true;
 
@@ -411,7 +374,7 @@ bool analyzer_is_insufficient_material(const Board *board) {
     if (total_minors == 1)
         return true;
 
-    //    K+B vs K+B or K+N vs K+N (one minor each side)
+    //    K+B vs. K+B or K+N vs. K+N (one minor each side)
     if (total_minors == 2 && white_minors == 1 && black_minors == 1) {
         return true;
     }
@@ -423,8 +386,8 @@ bool analyzer_is_insufficient_material(const Board *board) {
 bool analyzer_move_puts_to_check(Board *board, const Move &move) {
     const auto friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
     bool result = false;
-    BoardState state{};
     if (analyzer_is_move_legal(board, move)) {
+        BoardState state{};
         board->move_stateless(move, state);
         if (analyzer_is_color_in_check(board, ~friendly)) {
             result = true;

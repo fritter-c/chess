@@ -3,7 +3,10 @@
 #include "types.hpp"
 
 namespace game {
-void Board::populate() { std::memcpy(pieces.data(), StartingPosition.data(), sizeof(pieces)); }
+void Board::populate() {
+    static_assert(sizeof(pieces) == sizeof(StartingPosition));
+    std::memcpy(pieces.data(), StartingPosition.data(), pieces.size());
+}
 
 void Board::populate_bitboards() {
     std::memset(&pieces_by_type, 0, sizeof(pieces_by_type));
@@ -103,6 +106,9 @@ static void board_do_move(Board *board, const Move move, BoardState &state) {
         board->remove_piece(captured_row, captured_col);
     } else {
         state.captured_piece = board->pieces[Board::get_index(move.to_row(), move.to_col())];
+        if (PIECE_TYPE(state.captured_piece) != EMPTY) {
+            board->remove_piece(move.to_row(), move.to_col());
+        }
     }
 
     board->move_piece(move.get_origin_index(), move.get_destination_index());
