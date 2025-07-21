@@ -105,7 +105,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     value_type *&get_pointer() {
         PARANOID_ASSERT(!local_data());
-        return *reinterpret_cast<value_type **>(data);
+        return *std::bit_cast<value_type **>(&data[0]);
     }
 
     /**
@@ -119,7 +119,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     const value_type *const &get_pointer() const {
         PARANOID_ASSERT(!local_data());
-        return *reinterpret_cast<const value_type *const *>(data);
+        return *std::bit_cast<const value_type *const *>(&data[0]);
     }
 
     /**

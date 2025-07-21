@@ -95,8 +95,8 @@ static void render_debug_info(BoardPanel *panel) {
     ImGui::Separator();
     ImGui::TextUnformatted("Magic Boards");
 
-    static constexpr std::array magic_boards_names = {"Pawn Attacks", "Knight Attacks", "King Attacks",   "Rook Attacks",     "Bishop Attacks", "Queen Attacks",
-                                                      "Rook Mask",    "Bishop Mask",    "Pawn Attackers", "Knight Attackers", "King Attackers"};
+    static constexpr std::array magic_boards_names = {"Pawn Attacks",  "Knight Attacks", "King Attacks",     "Rook Attacks",  "Bishop Attacks",
+                                                      "Queen Attacks", "Pawn Attackers", "Knight Attackers", "King Attackers"};
     ImGui::Combo("###Table", &panel->selected_magic_board, magic_boards_names.data(), static_cast<int32_t>(magic_boards_names.size()));
 
     ImGui::Combo("###Square", &panel->selected_square, game::CellNamesC.data(), static_cast<int32_t>(game::CellNamesC.size()));
@@ -127,27 +127,17 @@ static void render_debug_info(BoardPanel *panel) {
         ImGui::TextUnformatted("Queen Attacks");
         ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.queen_attacks(static_cast<game::SquareIndex>(panel->selected_square))).c_str());
         break;
-    case 6: // Rook Mask
-        ImGui::TextUnformatted("Rook Occupancy Mask");
-        ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.rook_occupancy_mask[panel->selected_square]).c_str());
-        ImGui::Text("Relevant bits %d", game::MAGIC_BOARD.rook_relevant_bits[panel->selected_square]);
-        break;
-    case 7: // Bishop Mask
-        ImGui::TextUnformatted("Bishop Occupancy Mask");
-        ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.bishop_occupancy_mask[panel->selected_square]).c_str());
-        ImGui::Text("Relevant bits %d", game::MAGIC_BOARD.bishop_relevant_bits[panel->selected_square]);
-        break;
-    case 8: // Pawn Attacks
+    case 6: // Pawn Attacks
         ImGui::TextUnformatted("Pawn Attackers(White/Black)");
         ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.pawn_attackers[0][panel->selected_square]).c_str());
         ImGui::SameLine();
         ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.pawn_attackers[1][panel->selected_square]).c_str());
         break;
-    case 9: // Knight Attacks
+    case 7: // Knight Attacks
         ImGui::TextUnformatted("Knight Attackers");
         ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.knight_attackers[panel->selected_square]).c_str());
         break;
-    case 10: // King Attacks
+    case 8: // King Attacks
         ImGui::TextUnformatted("King Attackers");
         ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.king_attackers[panel->selected_square]).c_str());
         break;

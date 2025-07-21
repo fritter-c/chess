@@ -1,6 +1,5 @@
 #include "game.hpp"
 #include "analyzer.hpp"
-#include "bitboard.hpp"
 namespace game {
 Game::Game() {
     board.init();
@@ -76,7 +75,7 @@ bool Game::undo() {
 }
 
 bool Game::random_move() {
-    DrunkMan player{turn};
+    DrunkMan player{PlayerStatus{turn}};
     return move(player_get_move(player, board));
 }
 

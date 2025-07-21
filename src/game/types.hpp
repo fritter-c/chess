@@ -96,10 +96,6 @@ constexpr void bitboard_move_bit(BitBoard &b, const uint32_t from_square, const 
     b = b & ~(static_cast<BitBoard>(1) << from_square) | static_cast<BitBoard>(1) << to_square;
 }
 
-inline uint8_t bitboard_extract_rank(const BitBoard bb, const int32_t r) noexcept { return static_cast<uint8_t>(bb >> (r * 8) & RANK_MASK); }
-
-inline uint8_t bitboard_extract_file(const BitBoard bb, const int32_t f) noexcept { return static_cast<uint8_t>((bb >> f) & 0x0101010101010101ULL); }
-
 template <uint32_t... Squares> constexpr BitBoard bitboard_from_squares() noexcept {
     BitBoard bit = 0;
     ((bit |= static_cast<BitBoard>(1) << Squares), ...);
@@ -111,6 +107,10 @@ template <int = 0, typename... Squares> constexpr BitBoard bitboard_from_squares
     ((bit |= static_cast<BitBoard>(1) << static_cast<uint32_t>(s)), ...);
     return bit;
 }
+
+inline uint8_t bitboard_extract_rank(const BitBoard bb, const int32_t r) noexcept { return static_cast<uint8_t>(bb >> (r * 8) & RANK_MASK); }
+
+inline uint8_t bitboard_extract_file(const BitBoard bb, const int32_t f) noexcept { return static_cast<uint8_t>((bb >> f) & 0x0101010101010101ULL); }
 
 inline int32_t bitboard_index(const BitBoard bb) noexcept {
     Assert(bb != 0 && std::has_single_bit(bb), "bitboard_index: expected exactly one bit set");
@@ -128,66 +128,10 @@ enum BitBoardDirection : int8_t {
     WHITE_LEFT_DIRECTION = WHITE_DIRECTION + LEFT_DIRECTION
 };
 
-inline int32_t RowIncrement(Color c) {
-    static constexpr int32_t row_increments[] = {1, -1};
+inline int32_t RowIncrement(const Color c) {
+    static constexpr std::array row_increments = {1, -1};
     return row_increments[std::to_underlying(c)];
 }
-
-inline int32_t PawnCanDoubleStep(int32_t row, Color c) {
-    static constexpr int32_t double_step_row[] = {1, 6};
-    return static_cast<int32_t>(row == double_step_row[std::to_underlying(c)]);
-}
-
-// clang-format off
-static constexpr std::array<
-    std::array<std::array<BitBoard, 8>, 8>,  // 8 rows × 8 files
-    2                                       // 2 colors
-> PAWN_DOUBLE_STEP_POSITION = {{
-    // ┌───────── color = 0 (white)
-    {{
-        /* row 0 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 1 */ {{  // white’s starting rank for double-step
-             bitboard_from_squares<A4>(),
-             bitboard_from_squares<B4>(),
-             bitboard_from_squares<C4>(),
-             bitboard_from_squares<D4>(),
-             bitboard_from_squares<E4>(),
-             bitboard_from_squares<F4>(),
-             bitboard_from_squares<G4>(),
-             bitboard_from_squares<H4>()
-        }},
-        /* row 2 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 3 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 4 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 5 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 6 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 7 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }}
-    }},
-    // └───────── end white
-
-    // ┌───────── color = 1 (black)
-    {{
-        /* row 0 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 1 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 2 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 3 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 4 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 5 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }},
-        /* row 6 */ {{  // black’s starting rank for double-step
-             bitboard_from_squares<A5>(),
-             bitboard_from_squares<B5>(),
-             bitboard_from_squares<C5>(),
-             bitboard_from_squares<D5>(),
-             bitboard_from_squares<E5>(),
-             bitboard_from_squares<F5>(),
-             bitboard_from_squares<G5>(),
-             bitboard_from_squares<H5>()
-        }},
-        /* row 7 */ {{ 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL }}
-    }}
-    // └───────── end black
-}};
-// clang-format on
 
 static constexpr std::array<BitBoard, 2> CASTLE_KING_EMPTY = {{bitboard_from_squares<F1, G1>(), bitboard_from_squares<F8, G8>()}};
 static constexpr std::array<BitBoard, 2> CASTLE_QUEEN_EMPTY = {{bitboard_from_squares<D1, C1, B1>(), bitboard_from_squares<D8, C8, B8>()}};
@@ -217,6 +161,7 @@ constexpr int8_t CASTLE_RIGHTS_COUNT{16};
 
 struct MagicBoards {
     std::array<std::array<BitBoard, SQUARE_COUNT>, COLOR_COUNT> pawn_attacks;
+    std::array<std::array<BitBoard, SQUARE_COUNT>, COLOR_COUNT> pawn_moves;
     std::array<BitBoard, SQUARE_COUNT> knight_attacks;
     std::array<BitBoard, SQUARE_COUNT> king_attacks;
 
@@ -227,13 +172,8 @@ struct MagicBoards {
 
     BitBoard queen_attacks(const SquareIndex sq) const noexcept { return bishop_attacks[sq] | rook_attacks[sq]; }
 
-    std::array<BitBoard, SQUARE_COUNT> rook_occupancy_mask;
-    std::array<int, SQUARE_COUNT> rook_relevant_bits;
     std::array<BitBoard, SQUARE_COUNT> rook_attacks;
-
-    std::array<int, SQUARE_COUNT> bishop_relevant_bits;
     std::array<BitBoard, SQUARE_COUNT> bishop_attacks;
-    std::array<BitBoard, SQUARE_COUNT> bishop_occupancy_mask;
 };
 
 } // namespace game

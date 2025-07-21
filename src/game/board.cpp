@@ -27,9 +27,10 @@ void Board::init() {
     populate_bitboards();
     state_history.clear();
     state_history.push({});
-    current_state().castle_rights = CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE;
-    current_state().en_passant_index = -1;
-    current_state().castle_rights_bit = bitboard_from_squares<G1, G8, C1, C8>();
+    current_state = state_history.current();
+    current_state->castle_rights = CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE;
+    current_state->en_passant_index = -1;
+    current_state->castle_rights_bit = bitboard_from_squares<G1, G8, C1, C8>();
 }
 
 static bool board_can_move_basic(const Board *board, const uint8_t from_index, const uint8_t to_index) {
@@ -78,7 +79,7 @@ static void update_rights(BoardState &state, Piece piece, const int32_t piece_ro
     static constexpr std::array all_rights{~CASTLE_WHITE_ALL, ~CASTLE_BLACK_ALL};
     static constexpr std::array all_rights_bit{~bitboard_from_squares<G1, C1>(), ~bitboard_from_squares<G8, C8>()};
     static constexpr std::array side_rights{std::array{~CASTLE_WHITE_KINGSIDE, ~CASTLE_BLACK_KINGSIDE}, std::array{~CASTLE_WHITE_QUEENSIDE, ~CASTLE_BLACK_QUEENSIDE}};
-    static constexpr std::array<std::array<BitBoard, 2>, COLOR_COUNT> side_rights_bit{
+    static constexpr std::array side_rights_bit{
         std::array{~bitboard_from_squares<G1>(), ~bitboard_from_squares<C1>()}, // White
         std::array{~bitboard_from_squares<G8>(), ~bitboard_from_squares<C8>()}  // Black
     };
@@ -142,17 +143,18 @@ static void apply_move(Board &board, const Move move, BoardState &state) {
     }
 }
 
-void Board::move_stateless(Move m, BoardState &state) {
+void Board::move_stateless(const Move m, BoardState &state) {
     Assert(board_can_move_basic(this, m.get_origin(), m.get_destination()), "Invalid move");
     state.last_move = m;
     apply_move(*this, m, state);
 }
 
-void Board::move(const Move move) {
-    Assert(board_can_move_basic(this, move.get_origin(), move.get_destination()), "Invalid move");
-    state_history.push(current_state());
-    current_state().last_move = move;
-    apply_move(*this, move, current_state());
+void Board::move(const Move m) {
+    Assert(board_can_move_basic(this, m.get_origin(), m.get_destination()), "Invalid move");
+    state_history.push(*current_state);
+    current_state = state_history.current();
+    current_state->last_move = m;
+    apply_move(*this, m, *current_state);
 }
 
 void Board::move(const Move m, AlgebraicMove &out_alg) {
@@ -173,7 +175,11 @@ bool Board::redo() {
     Assert(board_can_move_basic(this, move.get_origin(), move.get_destination()), "Invalid move");
     BoardState dummy{};
     apply_move(*this, move, dummy);
-    return state_history.redo();
+    if (state_history.redo()) {
+        current_state = state_history.current();
+        return true;
+    }
+    return false;
 }
 
 static bool do_undo(Board &board, const Move &move, const BoardState &state) {
@@ -195,9 +201,10 @@ static bool do_undo(Board &board, const Move &move, const BoardState &state) {
 }
 
 bool Board::undo() {
-    const Move &move = current_state().last_move;
-    if (do_undo(*this, move, current_state())) {
+    const Move &move = current_state->last_move;
+    if (do_undo(*this, move, *current_state)) {
         state_history.undo();
+        current_state = state_history.current();
         return true;
     }
     return false;

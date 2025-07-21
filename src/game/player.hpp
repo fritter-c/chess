@@ -7,12 +7,12 @@
 
 namespace game {
 struct PlayerStatus {
-    Color color;
-    uint64_t time_left;
-    uint32_t moves_made;
-    uint32_t piece_score;
-    PlayerStatus() : color(PIECE_WHITE), time_left(0), moves_made(0), piece_score(0) {}
-    PlayerStatus(Color c) : color(c), time_left(0), moves_made(0), piece_score(0) {}
+    Color color{PIECE_WHITE};
+    uint64_t time_left{0};
+    uint32_t moves_made{0};
+    uint32_t piece_score{0};
+    PlayerStatus() = default;
+    explicit PlayerStatus(const Color c) : color(c) {}
 };
 
 
@@ -40,7 +40,7 @@ inline bool player_is_ai(const Player &p) { return !std::holds_alternative<Human
 
 
 template <typename T>
-inline Move player_get_move(T &p, Board &b) {
+Move player_get_move(T &p, Board &b) {
     return p.get_move(b);
 }
 template <>
