@@ -39,8 +39,8 @@ bool Game::move(const Move &move) {
     if (!game_is_playable(this)) {
         return false;
     }
-
-    if (board.get_color(move.from_row(), move.from_col()) == turn && analyzer_can_move(&board, move.from_row(), move.from_col(), move.to_row(), move.to_col())) {
+    AvailableMoves moves = analyzer_get_legal_moves_for_piece(&board, move.from_row(), move.from_col());
+    if (board.get_color(move.from_row(), move.from_col()) == turn && moves.get(move.to_row(), move.to_col())) {
         AlgebraicMove algebraic_move;
         board.move(move, algebraic_move);
         turn = ~turn;

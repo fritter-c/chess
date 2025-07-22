@@ -220,7 +220,7 @@ static void render_chess_board(game::Game *game, VisualBoard *board) {
             if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && board->dragging_piece_index == -1 && game->board.pieces[index] != game::PIECE_NONE &&
                 game->board.get_color(index) == game->turn) {
                 board->dragging_piece_index = index;
-                board->available_squares_for_dragging = game::analyzer_get_pseudo_legal_moves_for_piece(&game->board, index);
+                board->available_squares_for_dragging = game::analyzer_get_legal_moves_for_piece(&game->board, game::Board::get_row(index), game::Board::get_col(index));
                 ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
             } else if (board->dragging_piece_index != -1 && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && ImGui::IsItemHovered()) {
                 visual_board_piece_move(board, game, game::Board::get_row(board->dragging_piece_index), game::Board::get_col(board->dragging_piece_index), flipped_rank,

@@ -74,6 +74,17 @@ struct Board {
 
     gtr::large_string board_to_string() const;
 
+    Piece en_passant_piece() const{
+        if (current_state->en_passant_index == -1) {
+            return PIECE_NONE;
+        }
+        if (current_state->en_passant_index <= 23){
+            return WHITE_PAWN;
+        } else {
+            return BLACK_PAWN;
+        }
+    }
+
     constexpr void move_piece(const SquareIndex origin, const SquareIndex destination) {
         const Piece p = pieces[origin];
         pieces[destination] = pieces[origin];

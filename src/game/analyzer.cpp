@@ -1,6 +1,7 @@
 #include "analyzer.hpp"
 #include <array>
 #include <cstdint>
+#include <iostream>
 #include "board.hpp"
 #include "move.hpp"
 namespace game {
@@ -13,6 +14,7 @@ void analyzer_init_magic_board() {
     initialized = true;
     init_magic_boards(MAGIC_BOARD);
 }
+
 // Offsets for king moves (also used for pawn attack deltas and sliders' increment):
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KING_DELTAS = {{{+1, 0}, {-1, 0}, {0, +1}, {0, -1}, {+1, +1}, {+1, -1}, {-1, +1}, {-1, -1}}};
 
@@ -28,69 +30,31 @@ static bool analyzer_is_king_attacking(const Board *board, const SquareIndex ind
     return MAGIC_BOARD.king_attackers[index] & board->pieces_by_type[KING] & board->pieces_by_color[attacker];
 }
 
-static bool analyzer_is_slider_attacking(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
-    using enum PieceType;
-    for (auto [dr, dc] : KING_DELTAS) {
-        int32_t r = row + dr;
-        int32_t c = col + dc;
-        int32_t dist = 1;
-        while (r >= RANK_1 && r < RANK_COUNT && c >= FILE_A && c < FILE_COUNT) {
-            const auto p = board->pieces[Board::get_index(r, c)];
-            if (PIECE_TYPE(p) == EMPTY) {
-                ++dist;
-                r += dr;
-                c += dc;
-                continue;
-            }
+static bool analyzer_is_rook_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+    const BitBoard occ = board->pieces_by_type[ANY];
+    const BitBoard rooks = board->pieces_by_type[ROOK] & board->pieces_by_color[attacker];
+    return bitboard_get(MAGIC_BOARD.slider_attacks<ROOK>(occ, rooks), index);
+}
 
-            if (const bool is_diag = (dr != 0 && dc != 0);
-                PIECE_COLOR(p) != attacker || !(PIECE_TYPE(p) == QUEEN || (PIECE_TYPE(p) == ROOK && !is_diag) || (PIECE_TYPE(p) == BISHOP && is_diag))) {
-                break;
-            }
-            return true;
-        }
-    }
-    return false;
+static bool analyzer_is_bishop_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+    const BitBoard occ = board->pieces_by_type[ANY];
+    const BitBoard bishops = board->pieces_by_type[BISHOP] & board->pieces_by_color[attacker];
+    return bitboard_get(MAGIC_BOARD.slider_attacks<BISHOP>(occ, bishops), index);
+}
+
+static bool analyzer_is_queen_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+    const BitBoard occ = board->pieces_by_type[ANY];
+    const BitBoard queens = board->pieces_by_type[QUEEN] & board->pieces_by_color[attacker];
+    return bitboard_get(MAGIC_BOARD.slider_attacks<QUEEN>(occ, queens), index);
 }
 
 bool analyzer_is_cell_under_attack_by_color(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
     const SquareIndex cell = Board::square_index(row, col);
     return analyzer_is_knight_attacking(board, cell, attacker) || analyzer_is_king_attacking(board, cell, attacker) || analyzer_is_pawn_attacking(board, cell, attacker) ||
-           analyzer_is_slider_attacking(board, row, col, attacker);
+           analyzer_is_rook_attacking(board, cell, attacker) || analyzer_is_bishop_attacking(board, cell, attacker) || analyzer_is_queen_attacking(board, cell, attacker);
 }
 
-static bool analyzer_add_move(Board *board, const int32_t from_row, const int32_t from_col, const int32_t to_row, const int32_t to_col, AvailableMoves &moves, const Color enemy) {
-    const auto friendly = chess_piece_other_color(enemy);
-    if (to_row < RANK_1 || to_row >= RANK_COUNT || to_col < FILE_A || to_col >= FILE_COUNT)
-        return false;
-    const auto target = board->pieces[Board::get_index(to_row, to_col)];
-    BoardState state{};
-    if (PIECE_TYPE(target) == EMPTY) {
-        board->move_stateless(
-            analyzer_get_move_from_simple(board, {static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}),
-            state);
-        if (!analyzer_is_color_in_check(board, friendly)) {
-            moves.set(to_row, to_col);
-        }
-        board->undo_stateless(state);
-        return true; // Is not blocked can continue to try to add new moves
-    }
-    if (PIECE_COLOR(target) != enemy) {
-        return false;
-    }
-
-    board->move_stateless(
-        analyzer_get_move_from_simple(board, {static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}), state);
-    if (!analyzer_is_color_in_check(board, friendly)) {
-        moves.set(to_row, to_col);
-        board->undo_stateless(state);
-        return true;
-    }
-    board->undo_stateless(state);
-
-    return false;
-}
-
+// Pawn moves needs further check in case they are pinners
 static void analyzer_get_pawn_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
     const BitBoard empty = board->pieces_by_type[EMPTY];
     const BitBoard enemy_pieces = board->pieces_by_color[enemy];
@@ -108,6 +72,7 @@ static void analyzer_get_pawn_moves(const Board *board, const Piece, const int32
     moves.bits |= pawn_attacks & en_passant_rank;
 }
 
+// Castles need to further check for attacks on the king's path and current check status.
 static void analyzer_get_king_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
     const BitBoard king_attacks = MAGIC_BOARD.king_attacks[Board::square_index(row, col)]; // King attacks are in a table (All neighbor cells)
     const Color side = ~enemy;                                                             // Friendly color
@@ -122,19 +87,23 @@ static void analyzer_get_king_moves(const Board *board, const Piece, const int32
     moves.bits |= king_attacks & (board->pieces_by_color[enemy] | board->pieces_by_type[EMPTY]); // Just the king attacks. The move is available if the dest. cell is enemy or empty
 }
 
-static void analyzer_get_knight_moves(const Board *board, const Piece , const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
+// Knight moves need further check in case they are pinners
+static void analyzer_get_knight_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
     moves.bits |= MAGIC_BOARD.knight_attackers[Board::square_index(row, col)] & (board->pieces_by_color[enemy] | board->pieces_by_type[EMPTY]); // Knight moves are just attacks
 }
 
-static void analyzer_get_bishop_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color, AvailableMoves &moves) {
+// Bishop, Rook and Queen moves need further check in case they are pinners
+static void analyzer_get_bishop_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
     const BitBoard occ = board->pieces_by_type[ANY];
-    const BitBoard bishop_attacks = MAGIC_BOARD.slider_attacks<BISHOP>(occ, Board::square_index(row, col));
+    BitBoard bishop_attacks = MAGIC_BOARD.slider_attacks<BISHOP>(occ, Board::square_index(row, col));
+    bishop_attacks &= ~board->pieces_by_color[~enemy]; // Remove the friendly pieces from the attacks
     moves.bits |= bishop_attacks;
 }
 
-static void analyzer_get_rook_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color, AvailableMoves &moves) {
+static void analyzer_get_rook_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
     const BitBoard occ = board->pieces_by_type[ANY];
-    const BitBoard rook_attacks = MAGIC_BOARD.slider_attacks<ROOK>(occ, Board::square_index(row, col));
+    BitBoard rook_attacks = MAGIC_BOARD.slider_attacks<ROOK>(occ, Board::square_index(row, col));
+    rook_attacks &= ~board->pieces_by_color[~enemy]; // Remove the friendly pieces from the attacks
     moves.bits |= rook_attacks;
 }
 
@@ -162,6 +131,23 @@ AvailableMoves analyzer_get_pseudo_legal_moves_for_piece(Board *board, const int
     return moves;
 }
 
+AvailableMoves analyzer_filter_legal_moves(Board *board, AvailableMoves moves) {
+    AvailableMoves legal{};
+    SimpleMove move{};
+    move.from_row = Board::get_row(moves.origin_index);
+    move.from_col = Board::get_col(moves.origin_index);
+    legal.origin_index = moves.origin_index;
+    int count = moves.move_count();
+    for (auto it = BitBoardIterator::begin(moves.bits); it != BitBoardIterator::end(); ++it) {
+        move.to_row = Board::get_row(*it);
+        move.to_col = Board::get_col(*it);
+        if (analyzer_is_move_legal(board, move)) {
+            legal.set(move.to_row, move.to_col);
+        }
+    }
+    return legal;
+}
+
 bool analyzer_is_color_in_check(Board *board, Color color) {
     const int32_t index = bitboard_index(board->pieces_by_type[KING] & board->pieces_by_color[color]);
     const int32_t kr = Board::get_row(index);
@@ -175,7 +161,7 @@ bool analyzer_is_color_in_checkmate(Board *board, Color color) {
     }
     for (uint8_t i = 0; i < SQUARE_COUNT; ++i) {
         if (PIECE_COLOR(board->pieces[i]) == color) {
-            const auto [bits, origin] = analyzer_get_pseudo_legal_moves_for_piece(board, Board::get_row(i), Board::get_col(i));
+            const auto [bits, origin] = analyzer_get_legal_moves_for_piece(board, Board::get_row(i), Board::get_col(i));
             if (bits != 0) {
                 return false;
             }
@@ -213,7 +199,19 @@ int32_t analyzer_get_move_count(Board *board, Color color) {
     return count;
 }
 
-bool analyzer_get_is_stalemate(Board *board, Color friendly) { return analyzer_get_move_count(board, friendly) == 0 && !analyzer_is_color_in_checkmate(board, friendly); }
+int32_t analyzer_get_legal_move_count(Board *board, Color color) {
+    int32_t count = 0;
+    for (uint8_t i = 0; i < SQUARE_COUNT; ++i) {
+        if (PIECE_COLOR(board->pieces[i]) == color) {
+            const auto moves = analyzer_get_pseudo_legal_moves_for_piece(board, Board::get_row(i), Board::get_col(i));
+            const auto legal_moves = analyzer_filter_legal_moves(board, moves);
+            count += legal_moves.move_count();
+        }
+    }
+    return count;
+}
+
+bool analyzer_get_is_stalemate(Board *board, Color friendly) { return analyzer_get_legal_move_count(board, friendly) == 0 && !analyzer_is_color_in_checkmate(board, friendly); }
 
 bool analyzer_is_insufficient_material(const Board *board) {
     using std::popcount;
@@ -290,5 +288,45 @@ bool analyzer_move_puts_to_checkmate(Board *board, const Move &move) {
     return result;
 }
 
-bool analyzer_is_move_legal(Board *board, const Move &move) { return analyzer_can_move(board, move.from_row(), move.from_col(), move.to_row(), move.to_col()); }
+bool analyzer_is_move_legal(Board *board, const Move &move) {
+    if (move.get_origin() == move.get_destination()) {
+        return false; // No move
+    }
+
+    const auto friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
+
+    if (move.is_castle()) {
+        if (analyzer_is_color_in_check(board, friendly)) {
+            return false;
+        }
+
+        if (move.king_side_castle()) {
+            for (auto sq : CASTLE_KING_SQUARES[std::to_underlying(friendly)]) {
+                if (analyzer_is_cell_under_attack_by_color(board, Board::get_row(sq), Board::get_col(sq), ~friendly)) {
+                    return false;
+                }
+            }
+        } else {
+            for (auto sq : CASTLE_QUEEN_SQUARES[std::to_underlying(friendly)]) {
+                if (analyzer_is_cell_under_attack_by_color(board, Board::get_row(sq), Board::get_col(sq), ~friendly)) {
+                    return false;
+                }
+            }
+        }
+    } else {
+        if (move.is_en_passant()) {
+            if (PIECE_COLOR(board->en_passant_piece()) == friendly) {
+                return false; 
+            }
+        }
+        BoardState state{};
+        board->move_stateless(move, state);
+        if (analyzer_is_color_in_check(board, friendly)) {
+            board->undo_stateless(state);
+            return false;
+        }
+        board->undo_stateless(state);
+    }
+    return true;
+}
 } // namespace game

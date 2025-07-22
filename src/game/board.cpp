@@ -1,7 +1,7 @@
 #include "board.hpp"
 #include <cmath>
-#include "types.hpp"
 #include "analyzer.hpp"
+#include "types.hpp"
 
 namespace game {
 void Board::populate() {
@@ -137,6 +137,9 @@ static void apply_move(Board &board, const Move move, BoardState &state) {
         if (move.get_special() == Move::MOVE_PROMOTION) {
             state.moved_piece = board.pieces[move.get_origin()];
             state.captured_piece = board.pieces[move.get_destination()];
+            if (PIECE_TYPE(state.captured_piece) != EMPTY) {
+                board.remove_piece(move.get_destination_index());
+            }
             board.put_piece(chess_piece_make(move.get_promotion_piece_type(), PIECE_COLOR(board.pieces[move.get_origin()])), move.get_destination_index());
             board.remove_piece(move.get_origin_index());
         }
@@ -225,6 +228,5 @@ gtr::large_string Board::board_to_string() const {
     }
     return board_str;
 }
-
 
 } // namespace game

@@ -13,7 +13,7 @@ static void disambiguate(Board &board, const Move move, AlgebraicMove &out) {
         return;
     }
     for (int32_t i = 0; i < SQUARE_COUNT; ++i) {
-        if (i != origin_idx && board.pieces[i] == mover && analyzer_can_move(&board, Board::get_row(i), Board::get_col(i), move.to_row(), move.to_col())) {
+        if (i != origin_idx && board.pieces[i] == mover && analyzer_is_move_legal(&board, {Board::get_row(i), Board::get_col(i), move.to_row(), move.to_col()})) {
             if (Board::get_col(i) != move.from_col()) {
                 out.push_back(files[move.from_col()]);
                 continue;

@@ -92,6 +92,16 @@ struct Move {
     bool going_left() const { return (static_cast<int8_t>(get_destination()) - static_cast<int8_t>(get_origin())) % 8 < 0; }
 
     bool operator==(const Move &b) const = default;
+
+    bool king_side_castle() const{
+        Assert(is_castle(), "Move is not a castle move");
+        return to_col() == 6;
+    }
+
+    bool queen_side_castle() const{
+        Assert(is_castle(), "Move is not a castle move");
+        return to_col() == 2;
+    }
 };
 
 using AlgebraicMove = gtr::string;

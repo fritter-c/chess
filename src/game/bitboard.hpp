@@ -52,6 +52,51 @@ inline BitBoard bitboard_set_bit_if_set(BitBoard bb, SquareIndex sq, SquareIndex
     return bb;
 }
 
+struct BitBoardIterator{
+    BitBoard bits;
+    SquareIndex index{A1};
+
+    BitBoardIterator(BitBoard b) : bits(b) {
+        // go to the first set bit
+        if (bits == 0) {
+            index = SQUARE_COUNT; // end of iteration
+        } else {
+            index = static_cast<SquareIndex>(std::countr_zero(bits));
+            bits &= bits - 1; // clear the lowest set bit
+        }
+    }
+
+    SquareIndex operator*() const {
+        return index;
+    }
+
+    BitBoardIterator &operator++() {
+        if (bits == 0) {
+            index = SQUARE_COUNT; // end of iteration
+        } else {
+            index = static_cast<SquareIndex>(std::countr_zero(bits));
+            bits &= bits - 1; // clear the lowest set bit
+        }
+        return *this;
+    }
+
+    bool operator!=(const BitBoardIterator &other) const {
+        return bits != other.bits || index != other.index;
+    }
+
+    bool operator==(const BitBoardIterator &other) const {
+        return bits == other.bits && index == other.index;
+    }
+
+    static BitBoardIterator begin(BitBoard b) {
+        return BitBoardIterator(b);
+    }
+
+    static BitBoardIterator end() {
+        return BitBoardIterator(0);
+    }
+};
+
 enum BitBoardDirection : int8_t {
     BLACK_DIRECTION = 8,
     WHITE_DIRECTION = -BLACK_DIRECTION,
@@ -69,7 +114,9 @@ inline int32_t RowIncrement(const Color c) {
 }
 
 static constexpr std::array<BitBoard, 2> CASTLE_KING_EMPTY = {{bitboard_from_squares<F1, G1>(), bitboard_from_squares<F8, G8>()}};
+static constexpr std::array<std::array<SquareIndex, 2>, 2> CASTLE_KING_SQUARES = {{{F1, G1}, {F8, G8}}};
 static constexpr std::array<BitBoard, 2> CASTLE_QUEEN_EMPTY = {{bitboard_from_squares<D1, C1, B1>(), bitboard_from_squares<D8, C8, B8>()}};
+static constexpr std::array<std::array<SquareIndex, 3>, 2> CASTLE_QUEEN_SQUARES = {{{D1, C1, B1}, {D8, C8, B8}}};
 static constexpr std::array<int32_t, 2> KING_ROW = {{0, 7}};
 static constexpr std::array<BitBoard, 2> CASTLE_KING_DEST = {{bitboard_from_squares<G1>(), bitboard_from_squares<G8>()}};
 static constexpr std::array<BitBoard, 2> CASTLE_QUEEN_DEST = {{bitboard_from_squares<C1>(), bitboard_from_squares<C8>()}};
@@ -106,38 +153,49 @@ struct MagicBoards {
     std::array<BitBoard, SQUARE_COUNT> knight_attackers;
     std::array<BitBoard, SQUARE_COUNT> king_attackers;
 
-    BitBoard queen_attacks(const SquareIndex sq) const noexcept { return bishop_attacks[sq] | rook_attacks[sq]; }
     BitBoard queen_mask(const SquareIndex sq) const noexcept { return bishop_mask[sq] | rook_mask[sq]; }
 
-    std::array<BitBoard, SQUARE_COUNT> rook_attacks;
-    std::array<BitBoard, SQUARE_COUNT> bishop_attacks;
     std::array<BitBoard, SQUARE_COUNT> rook_mask;
-    std::array<BitBoard, SQUARE_COUNT> bishop_mask;
     std::array<uint64_t, SQUARE_COUNT> rook_magic;
     std::array<uint32_t, SQUARE_COUNT> rook_shift;
+    std::array<uint32_t, SQUARE_COUNT> rook_offset;
+    std::array<uint16_t, 0x19000> rook_unique_indexes;
+    std::array<BitBoard, 4900> rook_unique_table;
+
+    std::array<BitBoard, SQUARE_COUNT> bishop_mask;
     std::array<uint64_t, SQUARE_COUNT> bishop_magic;
     std::array<uint32_t, SQUARE_COUNT> bishop_shift;
-    alignas(64) std::array<BitBoard, 0x19000> rook_attack_table;
-    alignas(64) std::array<BitBoard, 0x1480> bishop_attack_table;
-    std::array<uint32_t, SQUARE_COUNT> rook_offset;
     std::array<uint32_t, SQUARE_COUNT> bishop_offset;
+    std::array<uint16_t, 0x1480> bishop_unique_indexes;
+    std::array<BitBoard, 1426> bishop_unique_table; // Why im getting 1426 and not 1428 like in the wiki?
 
     template <PieceType T> BitBoard slider_attacks(BitBoard occ, const SquareIndex sq) const noexcept {
         if constexpr (T == ROOK) {
             occ &= rook_mask[sq];   // Apply the mask to the occupancy
             occ *= rook_magic[sq];  // Multiply by the magic number
             occ >>= rook_shift[sq]; // Shift to get the index
-            return rook_attack_table[rook_offset[sq] + occ];
+            return rook_unique_table[rook_unique_indexes[rook_offset[sq] + occ]];
         } else if constexpr (T == BISHOP) {
             occ &= bishop_mask[sq];   // Apply the mask to the occupancy
             occ *= bishop_magic[sq];  // Multiply by the magic number
             occ >>= bishop_shift[sq]; // Shift to get the index
-            return bishop_attack_table[bishop_offset[sq] + occ];
+            return bishop_unique_table[bishop_unique_indexes[bishop_offset[sq] + occ]];
         } else if constexpr (T == QUEEN) {
             return slider_attacks<ROOK>(occ, sq) | slider_attacks<BISHOP>(occ, sq);
         } else {
-            static_assert(false, "Invalid piece type for index calculation");
+            Unreachable("Invalid piece type for slider attacks");
         }
+    }
+
+    template <PieceType T> BitBoard slider_attacks(BitBoard occ, BitBoard pieces_bb) const noexcept {
+        BitBoard attacks = 0;
+        while (pieces_bb) {
+            BitBoard lsb = pieces_bb & -pieces_bb;
+            auto sq = static_cast<SquareIndex>(bitboard_index(lsb));
+            attacks |= slider_attacks<T>(occ, sq);
+            pieces_bb ^= lsb;
+        }
+        return attacks;
     }
 };
 
