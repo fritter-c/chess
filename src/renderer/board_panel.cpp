@@ -5,6 +5,7 @@ namespace renderer {
 // Until I have a better font I have to split the output and change fonts back and forth
 static void get_move_with_icon(const game::AlgebraicMove &move, gtr::string &before, gtr::string &icon, gtr::string &after) {
 
+    // Check if a character is a piece representation
     auto contains_piece = [](const char piece) {
         static constexpr char piece_map[] = {'N', 'B', 'R', 'Q', 'K'};
         for (const auto piece_char : piece_map) {
@@ -96,7 +97,7 @@ static void render_debug_info(BoardPanel *panel) {
     ImGui::TextUnformatted("Magic Boards");
 
     static constexpr std::array magic_boards_names = {"Pawn Attacks",  "Knight Attacks", "King Attacks",     "Rook Attacks",  "Bishop Attacks",
-                                                      "Queen Attacks", "Pawn Attackers", "Knight Attackers", "King Attackers"};
+                                                      "Queen Attacks", "Pawn Attackers", "Knight Attackers", "King Attackers", "Rook Mask", "Bishop Mask"};
     ImGui::Combo("###Table", &panel->selected_magic_board, magic_boards_names.data(), static_cast<int32_t>(magic_boards_names.size()));
 
     ImGui::Combo("###Square", &panel->selected_square, game::CellNamesC.data(), static_cast<int32_t>(game::CellNamesC.size()));
@@ -140,6 +141,14 @@ static void render_debug_info(BoardPanel *panel) {
     case 8: // King Attacks
         ImGui::TextUnformatted("King Attackers");
         ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.king_attackers[panel->selected_square]).c_str());
+        break;
+    case 9: // Rook Mask
+        ImGui::TextUnformatted("Rook Mask");
+        ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.rook_mask[panel->selected_square]).c_str());
+        break;
+    case 10: // Bishop Mask
+        ImGui::TextUnformatted("Bishop Mask");
+        ImGui::TextUnformatted(game::Board::print_bitboard(game::MAGIC_BOARD.bishop_mask[panel->selected_square]).c_str());
         break;
     default: ImGui::TextUnformatted("Unknown Magic Board"); break;
     }

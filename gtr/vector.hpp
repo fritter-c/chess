@@ -122,10 +122,14 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
      * @param Size The initial capacity of the vector.
      * @param value The value to initialize each element with.
      */
-    vector(size_type Size, const T &value) : container_base<Allocator>(), data(allocate(Size)) {
+    vector(size_type Size, const T &value) : container_base<Allocator>(), data(this->allocate(Size)) {
         data_end = data + Size;
         capacity_end = data_end;
-        for (size_type i = 0; i < Size; ++i) { new (data + i) T(value); }
+        if constexpr (std::is_trivially_constructible_v<T>) {
+            std::memset(data, 0, Size * sizeof(T));
+        } else {
+            for (size_type i = 0; i < Size; ++i) { new (data + i) T(value); }
+        }
     }
 
     /**
@@ -138,7 +142,7 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
      *
      * @param init_list The initializer list containing elements to initialize the vector with.
      */
-    vector(std::initializer_list<T> init_list) : container_base<Allocator>(), data(allocate(init_list.size())) {
+    vector(std::initializer_list<T> init_list) : container_base<Allocator>(), data(this->allocate(init_list.size())) {
         data_end = data;
         capacity_end = data + init_list.size();
         for (const auto &item : init_list) {

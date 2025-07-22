@@ -5,7 +5,7 @@
 #include "move.hpp"
 #include "piece.hpp"
 #include "types.hpp"
-
+#include "bitboard.hpp"
 namespace game {
 struct BoardState {
     std::byte castle_rights;
@@ -110,7 +110,7 @@ struct Board {
     }
     static gtr::large_string print_bitboard(BitBoard board);
 
-    template <PieceType T, Color C> /* Might be faster */
+    template <PieceType T, Color C> 
     constexpr BitBoard get_piece_bitboard() const {
         return pieces_by_type[T] & pieces_by_color[C];
     }

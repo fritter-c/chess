@@ -36,5 +36,5 @@ bool analyzer_get_is_stalemate(Board *board, Color friendly);
 
 bool analyzer_is_insufficient_material(const Board *board);
 
-static constexpr MagicBoards MAGIC_BOARD = init_magic_boards();
+static MagicBoards MAGIC_BOARD = init_magic_boards();
 } // namespace game

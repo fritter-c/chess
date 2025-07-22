@@ -91,31 +91,6 @@ struct Move {
 
     bool going_left() const { return (static_cast<int8_t>(get_destination()) - static_cast<int8_t>(get_origin())) % 8 < 0; }
 
-    SquareIndex get_castle_rook_destination_index() const {
-        if (is_castle()) {
-            switch (get_destination_index()) {
-            case G1: return F1;
-            case C1: return D1;
-            case G8: return F8;
-            case C8: return D8;
-            default: return SQUARE_COUNT;
-            }
-        }
-        return SQUARE_COUNT;
-    }
-
-    SquareIndex get_castle_rook_origin_index() const {
-        if (is_castle()) {
-            switch (get_destination_index()) {
-            case G1: return H1;
-            case C1: return A1;
-            case G8: return H8;
-            case C8: return A8;
-            default: return SQUARE_COUNT;
-            }
-        }
-        return SQUARE_COUNT;
-    }
     bool operator==(const Move &b) const = default;
 };
 

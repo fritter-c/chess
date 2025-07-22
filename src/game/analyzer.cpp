@@ -95,7 +95,6 @@ static void analyzer_get_pawn_moves(Board *board, const Piece, const int32_t row
     const BitBoard one_bb = BitBoard{1} << one_sq;
     const BitBoard first = one_bb & empty;
     const BitBoard guard = BitBoard{0} - BitBoard{first >> one_sq & 1ULL};
-
     moves.bits |= first;
     moves.bits |= pawn_moves & empty & guard;
     moves.bits |= pawn_attacks & enemy_pieces;
@@ -126,14 +125,27 @@ static void analyzer_get_bishop_moves(Board *board, const Piece piece, const int
 }
 
 static void analyzer_get_rook_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
-    const BitBoard rook_attacks = MAGIC_BOARD.rook_attacks[Board::square_index(row, col)];
-    const BitBoard rook_enemy_row = bitboard_extract_rank(board->pieces_by_color[enemy], row);
-    const BitBoard rook_friendly_row = bitboard_extract_rank(board->pieces_by_color[~enemy], row);
-    const BitBoard rook_enemy_col = bitboard_extract_file(board->pieces_by_color[enemy], col);
-    const BitBoard rook_friendly_col = bitboard_extract_file(board->pieces_by_color[~enemy], col);
+    const Color friendly = ~enemy;
+    const BitBoard occupancy = board->pieces_by_color[enemy] | board->pieces_by_color[friendly];
+    static constexpr std::array<std::pair<int32_t, int32_t>, 4> deltas = {{
+        {+1, 0}, // north
+        {-1, 0}, // south
+        {0, +1}, // east
+        {0, -1}  // west
+    }};
 
-
-
+    for (auto [dr, dc] : deltas) {
+        int32_t r = row + dr, c = col + dc;
+        while (r >= RANK_1 && r < RANK_COUNT && c >= FILE_A && c < FILE_COUNT) {
+            const SquareIndex sq = Board::square_index(r, c);
+            const BitBoard bit = BitBoard{1} << sq;
+            moves.bits |= bit;
+            if (occupancy & bit)
+                break;
+            r += dr;
+            c += dc;
+        }
+    }
 }
 
 static void analyzer_get_queen_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {

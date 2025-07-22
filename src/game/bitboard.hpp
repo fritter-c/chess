@@ -1,104 +1,151 @@
 #pragma once
+#include <random>
 #include "types.hpp"
-
 namespace game {
-template <typename Offsets> constexpr BitBoard make_attack_mask(int32_t square, const Offsets &offsets) noexcept {
-    const int32_t r = square / 8;
-    const int32_t c = square % 8;
-    BitBoard bb = 0;
-    for (auto [dr, dc] : offsets) {
-        const int32_t rr = r + dr;
-        const int32_t cc = c + dc;
-        if (rr >= 0 && rr < 8 && cc >= 0 && cc < 8)
-            bb |= (BitBoard{1} << (rr * 8 + cc));
-    }
+using BitBoard = uint64_t;
+
+static constexpr BitBoard RANK_MASK = 0xFFULL;
+
+constexpr void bitboard_set(BitBoard &bit, const uint32_t r, const uint32_t f) noexcept { bit |= static_cast<BitBoard>(1) << (r * 8 + f); }
+
+constexpr void bitboard_set(BitBoard &bit, const uint32_t sq) noexcept { bit |= static_cast<BitBoard>(1) << sq; }
+
+constexpr void bitboard_clear(BitBoard &bit, const uint32_t r, const uint32_t f) noexcept { bit &= ~(static_cast<BitBoard>(1) << (r * 8 + f)); }
+
+constexpr void bitboard_clear(BitBoard &bit, const uint32_t sq) noexcept { bit &= ~(static_cast<BitBoard>(1) << sq); }
+
+constexpr bool bitboard_get(const BitBoard &bit, const uint32_t r, const uint32_t f) noexcept { return (bit & static_cast<BitBoard>(1) << (r * 8 + f)) != 0; }
+
+constexpr bool bitboard_get(const BitBoard &bit, const uint32_t sq) noexcept { return (bit & static_cast<BitBoard>(1) << sq) != 0; }
+
+constexpr int32_t bitboard_count(const BitBoard &bit) noexcept { return std::popcount(bit); }
+
+constexpr void bitboard_move_bit(BitBoard &b, const uint32_t from_square, const uint32_t to_square) noexcept {
+    b = b & ~(static_cast<BitBoard>(1) << from_square) | static_cast<BitBoard>(1) << to_square;
+}
+
+template <uint32_t... Squares> constexpr BitBoard bitboard_from_squares() noexcept {
+    BitBoard bit = 0;
+    ((bit |= static_cast<BitBoard>(1) << Squares), ...);
+    return bit;
+}
+
+template <int32_t = 0, typename... Squares> constexpr BitBoard bitboard_from_squares(Squares... s) noexcept {
+    BitBoard bit = 0;
+    ((bit |= static_cast<BitBoard>(1) << static_cast<uint32_t>(s)), ...);
+    return bit;
+}
+
+inline uint8_t bitboard_extract_rank(const BitBoard bb, const int32_t r) noexcept { return static_cast<uint8_t>(bb >> (r * 8) & RANK_MASK); }
+
+inline uint8_t bitboard_extract_file(const BitBoard bb, const int32_t f) noexcept { return static_cast<uint8_t>((bb >> f) & 0x0101010101010101ULL); }
+
+inline int32_t bitboard_index(const BitBoard bb) noexcept {
+    Assert(bb != 0 && std::has_single_bit(bb), "bitboard_index: expected exactly one bit set");
+    return std::countr_zero(bb);
+}
+
+inline BitBoard bitboard_set_bit_if_set(BitBoard bb, SquareIndex sq, SquareIndex dest) noexcept {
+    Assert(sq < SQUARE_COUNT, "bitboard_set_bit_if_set: square index out of bounds");
+    bb |= ((bb >> sq) << 1ULL) << dest;
     return bb;
 }
 
-consteval MagicBoards init_magic_boards() noexcept {
-    // pawn attacks
-    MagicBoards mb{};
-    for (int32_t color = 0; color < COLOR_COUNT; ++color) {
-        // white dr = +1; black dr = -1
-        int32_t pawn_dr = (color == 0 ? +1 : -1);
-        for (int32_t sq = 0; sq < SQUARE_COUNT; ++sq) { mb.pawn_attacks[color][sq] = make_attack_mask(sq, std::array{std::pair{pawn_dr, -1}, std::pair{pawn_dr, +1}}); }
-    }
+enum BitBoardDirection : int8_t {
+    BLACK_DIRECTION = 8,
+    WHITE_DIRECTION = -BLACK_DIRECTION,
+    RIGHT_DIRECTION = 1,
+    LEFT_DIRECTION = -RIGHT_DIRECTION,
+    BLACK_RIGHT_DIRECTION = BLACK_DIRECTION + RIGHT_DIRECTION,
+    BLACK_LEFT_DIRECTION = BLACK_DIRECTION + LEFT_DIRECTION,
+    WHITE_RIGHT_DIRECTION = WHITE_DIRECTION + RIGHT_DIRECTION,
+    WHITE_LEFT_DIRECTION = WHITE_DIRECTION + LEFT_DIRECTION
+};
 
-    // — pawn moves (single + double pushes only) —
-    for (int32_t color = 0; color < COLOR_COUNT; ++color) {
-        // white dr = +1; black dr = -1
-        const int32_t dr = (color == 0 ? +1 : -1);
-        for (int sq = 0; sq < SQUARE_COUNT; ++sq) {
-            const int r = sq / 8, c = sq % 8;
-            BitBoard push_bb = 0;
-
-            const int32_t r1 = r + dr;
-            // single‐step
-            if (r1 >= 0 && r1 < 8) {
-                const int32_t sq1 = r1 * 8 + c;
-                push_bb |= BitBoard{1} << sq1;
-
-                // double‐step from start rank (rank 2 for white, 7 for black)
-                if (color == 0 ? r == 1 : r == 6) {
-                    const int32_t r2 = r + 2 * dr;
-                    const int32_t sq2 = r2 * 8 + c;
-                    push_bb |= BitBoard{1} << sq2;
-                }
-            }
-
-            mb.pawn_moves[color][sq] = push_bb;
-        }
-    }
-    for (int32_t sq = 0; sq < SQUARE_COUNT; ++sq) {
-        mb.knight_attacks[sq] = make_attack_mask(
-            sq, std::array{std::pair{+2, +1}, std::pair{+1, +2}, std::pair{-1, +2}, std::pair{-2, +1}, std::pair{-2, -1}, std::pair{-1, -2}, std::pair{+1, -2}, std::pair{+2, -1}});
-
-        mb.king_attacks[sq] = make_attack_mask(
-            sq, std::array{std::pair{+1, 0}, std::pair{-1, 0}, std::pair{0, +1}, std::pair{0, -1}, std::pair{+1, +1}, std::pair{+1, -1}, std::pair{-1, +1}, std::pair{-1, -1}});
-
-        mb.rook_attacks[sq] =
-            make_attack_mask(sq, std::array{std::pair{+1, 0}, std::pair{0, +1}, std::pair{-1, 0}, std::pair{0, -1}, std::pair{+2, 0}, std::pair{0, +2}, std::pair{-2, 0},
-                                            std::pair{0, -2}, std::pair{+3, 0}, std::pair{0, +3}, std::pair{-3, 0}, std::pair{0, -3}, std::pair{+4, 0}, std::pair{0, +4},
-                                            std::pair{-4, 0}, std::pair{0, -4}, std::pair{+5, 0}, std::pair{0, +5}, std::pair{-5, 0}, std::pair{0, -5}, std::pair{+6, 0},
-                                            std::pair{0, +6}, std::pair{-6, 0}, std::pair{0, -6}, std::pair{+7, 0}, std::pair{0, +7}, std::pair{-7, 0}, std::pair{0, -7}});
-        mb.bishop_attacks[sq] =
-            make_attack_mask(sq, std::array{std::pair{+1, +1}, std::pair{-1, -1}, std::pair{+1, -1}, std::pair{-1, +1}, std::pair{+2, +2}, std::pair{-2, -2}, std::pair{+2, -2},
-                                            std::pair{-2, +2}, std::pair{+3, +3}, std::pair{-3, -3}, std::pair{+3, -3}, std::pair{-3, +3}, std::pair{+4, +4}, std::pair{-4, -4},
-                                            std::pair{+4, -4}, std::pair{-4, +4}, std::pair{+5, +5}, std::pair{-5, -5}, std::pair{+5, -5}, std::pair{-5, +5}, std::pair{+6, +6},
-                                            std::pair{-6, -6}, std::pair{+6, -6}, std::pair{-6, +6}, std::pair{+7, +7}, std::pair{-7, -7}, std::pair{+7, -7}, std::pair{-7, +7}});
-
-        const BitBoard from_bb = BitBoard{1} << sq;
-
-        // pawn_attackers (for both colors)
-        for (int32_t color = 0; color < 2; ++color) {
-            const BitBoard fw = mb.pawn_attacks[color][sq];
-            for (int32_t t = 0; t < 64; ++t) {
-                if (fw & (BitBoard{1} << t))
-                    mb.pawn_attackers[color][t] |= from_bb;
-            }
-        }
-
-        // knight_attackers
-        {
-            const BitBoard fw = mb.knight_attacks[sq];
-            for (int32_t t = 0; t < 64; ++t) {
-                if (fw & (BitBoard{1} << t))
-                    mb.knight_attackers[t] |= from_bb;
-            }
-        }
-
-        // king_attackers
-        {
-            const BitBoard fw = mb.king_attacks[sq];
-            for (int32_t t = 0; t < 64; ++t) {
-                if (fw & (BitBoard{1} << t))
-                    mb.king_attackers[t] |= from_bb;
-            }
-        }
-    }
-
-    return mb;
+inline int32_t RowIncrement(const Color c) {
+    static constexpr std::array row_increments = {1, -1};
+    return row_increments[std::to_underlying(c)];
 }
+
+static constexpr std::array<BitBoard, 2> CASTLE_KING_EMPTY = {{bitboard_from_squares<F1, G1>(), bitboard_from_squares<F8, G8>()}};
+static constexpr std::array<BitBoard, 2> CASTLE_QUEEN_EMPTY = {{bitboard_from_squares<D1, C1, B1>(), bitboard_from_squares<D8, C8, B8>()}};
+static constexpr std::array<int32_t, 2> KING_ROW = {{0, 7}};
+static constexpr std::array<BitBoard, 2> CASTLE_KING_DEST = {{bitboard_from_squares<G1>(), bitboard_from_squares<G8>()}};
+static constexpr std::array<BitBoard, 2> CASTLE_QUEEN_DEST = {{bitboard_from_squares<C1>(), bitboard_from_squares<C8>()}};
+struct AvailableMoves {
+    BitBoard bits;
+    int32_t origin_index;
+    void set(const int32_t row, const int32_t col) { bitboard_set(bits, row, col); }
+    void clear(const int32_t row, const int32_t col) { bitboard_clear(bits, row, col); }
+    bool get(const int32_t row, const int32_t col) const { return bitboard_get(bits, row, col); }
+    bool get(const int32_t index) const { return get(index / 8, index % 8); }
+    void reset() { bits = static_cast<BitBoard>(0); }
+    int32_t move_count() const { return bitboard_count(bits); }
+};
+
+constexpr std::byte CASTLE_NONE{0};
+constexpr std::byte CASTLE_WHITE_KINGSIDE{1 << 0};
+constexpr std::byte CASTLE_WHITE_QUEENSIDE{1 << 1};
+constexpr std::byte CASTLE_BLACK_KINGSIDE{1 << 2};
+constexpr std::byte CASTLE_BLACK_QUEENSIDE{1 << 3};
+constexpr std::byte CASTLE_BLACK_ALL{CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE};
+constexpr std::byte CASTLE_WHITE_ALL{CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE};
+constexpr std::byte CASTLE_RIGHTS_ALL{CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE};
+constexpr int8_t CASTLE_RIGHTS_COUNT{16};
+struct MagicBoards {
+    std::array<std::array<BitBoard, SQUARE_COUNT>, COLOR_COUNT> pawn_attacks;
+    std::array<std::array<BitBoard, SQUARE_COUNT>, COLOR_COUNT> pawn_moves;
+    std::array<BitBoard, SQUARE_COUNT> knight_attacks;
+    std::array<BitBoard, SQUARE_COUNT> king_attacks;
+
+    // reverse
+    std::array<std::array<BitBoard, SQUARE_COUNT>, COLOR_COUNT> pawn_attackers;
+    std::array<BitBoard, SQUARE_COUNT> knight_attackers;
+    std::array<BitBoard, SQUARE_COUNT> king_attackers;
+
+    BitBoard queen_attacks(const SquareIndex sq) const noexcept { return bishop_attacks[sq] | rook_attacks[sq]; }
+    BitBoard queen_mask(const SquareIndex sq) const noexcept { return bishop_mask[sq] | rook_mask[sq]; }
+
+    std::array<BitBoard, SQUARE_COUNT> rook_attacks;
+    std::array<BitBoard, SQUARE_COUNT> bishop_attacks;
+    std::array<BitBoard, SQUARE_COUNT> rook_mask;
+    std::array<BitBoard, SQUARE_COUNT> bishop_mask;
+    std::array<uint64_t, SQUARE_COUNT> rook_magic;
+    std::array<int32_t, SQUARE_COUNT> rook_shift;
+    std::array<uint64_t, SQUARE_COUNT> bishop_magic;
+    std::array<int32_t, SQUARE_COUNT> bishop_shift;
+    std::array<BitBoard, 0x19000> rook_attack_table;
+    std::array<BitBoard, 0x1480> bishop_attack_table;
+
+    template<PieceType T>
+    BitBoard slider_attacks(SquareIndex s, BitBoard occupancy) {
+        static_assert(T == PieceType::ROOK || T == PieceType::BISHOP || T == PieceType::QUEEN, "Invalid piece type for slider attacks");
+        switch (T)
+        {
+        case PieceType::ROOK: {
+            const auto index = s;
+            const auto magic = rook_magic[index];
+            const auto shift = rook_shift[index];
+            const auto occupancy_index = (occupancy * magic) >> shift;
+            return rook_attack_table[occupancy_index];
+        }
+        case PieceType::BISHOP: {
+            const auto index = s;
+            const auto magic = bishop_magic[index];
+            const auto shift = bishop_shift[index];
+            const auto occupancy_index = (occupancy * magic) >> shift;
+            return bishop_attack_table[occupancy_index];
+        }
+        case PieceType::QUEEN:
+            return slider_attacks<ROOK>(s, occupancy) | slider_attacks<BISHOP>(s, occupancy);
+        default:
+            return static_cast<BitBoard>(0); // For EMPTY, no attacks
+        }
+        
+    }
+};
+
+MagicBoards init_magic_boards() noexcept;
 
 constexpr BitBoard FileA = 0x0101010101010101ULL;
 constexpr BitBoard FileB = 0x0202020202020202ULL;
