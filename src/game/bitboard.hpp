@@ -1,5 +1,6 @@
 #pragma once
 #include <random>
+#include <string.hpp>
 #include "types.hpp"
 namespace game {
 using BitBoard = uint64_t;
@@ -83,6 +84,8 @@ struct AvailableMoves {
     int32_t move_count() const { return bitboard_count(bits); }
 };
 
+gtr::large_string print_bitboard(BitBoard board);
+
 constexpr std::byte CASTLE_NONE{0};
 constexpr std::byte CASTLE_WHITE_KINGSIDE{1 << 0};
 constexpr std::byte CASTLE_WHITE_QUEENSIDE{1 << 1};
@@ -111,41 +114,36 @@ struct MagicBoards {
     std::array<BitBoard, SQUARE_COUNT> rook_mask;
     std::array<BitBoard, SQUARE_COUNT> bishop_mask;
     std::array<uint64_t, SQUARE_COUNT> rook_magic;
-    std::array<int32_t, SQUARE_COUNT> rook_shift;
+    std::array<uint32_t, SQUARE_COUNT> rook_shift;
     std::array<uint64_t, SQUARE_COUNT> bishop_magic;
-    std::array<int32_t, SQUARE_COUNT> bishop_shift;
-    std::array<BitBoard, 0x19000> rook_attack_table;
-    std::array<BitBoard, 0x1480> bishop_attack_table;
+    std::array<uint32_t, SQUARE_COUNT> bishop_shift;
+    alignas(64) std::array<BitBoard, 0x19000> rook_attack_table;
+    alignas(64) std::array<BitBoard, 0x1480> bishop_attack_table;
+    std::array<uint32_t, SQUARE_COUNT> rook_offset;
+    std::array<uint32_t, SQUARE_COUNT> bishop_offset;
 
-    template<PieceType T>
-    BitBoard slider_attacks(SquareIndex s, BitBoard occupancy) {
-        static_assert(T == PieceType::ROOK || T == PieceType::BISHOP || T == PieceType::QUEEN, "Invalid piece type for slider attacks");
-        switch (T)
-        {
-        case PieceType::ROOK: {
-            const auto index = s;
-            const auto magic = rook_magic[index];
-            const auto shift = rook_shift[index];
-            const auto occupancy_index = (occupancy * magic) >> shift;
-            return rook_attack_table[occupancy_index];
+    template <PieceType T> BitBoard slider_attacks(BitBoard occ, const SquareIndex sq) const noexcept {
+        if constexpr (T == ROOK) {
+            occ &= rook_mask[sq];   // Apply the mask to the occupancy
+            occ *= rook_magic[sq];  // Multiply by the magic number
+            occ >>= rook_shift[sq]; // Shift to get the index
+            return rook_attack_table[rook_offset[sq] + occ];
+        } else if constexpr (T == BISHOP) {
+            occ &= bishop_mask[sq];   // Apply the mask to the occupancy
+            occ *= bishop_magic[sq];  // Multiply by the magic number
+            occ >>= bishop_shift[sq]; // Shift to get the index
+            return bishop_attack_table[bishop_offset[sq] + occ];
+        } else if constexpr (T == QUEEN) {
+            return slider_attacks<ROOK>(occ, sq) | slider_attacks<BISHOP>(occ, sq);
+        } else {
+            static_assert(false, "Invalid piece type for index calculation");
         }
-        case PieceType::BISHOP: {
-            const auto index = s;
-            const auto magic = bishop_magic[index];
-            const auto shift = bishop_shift[index];
-            const auto occupancy_index = (occupancy * magic) >> shift;
-            return bishop_attack_table[occupancy_index];
-        }
-        case PieceType::QUEEN:
-            return slider_attacks<ROOK>(s, occupancy) | slider_attacks<BISHOP>(s, occupancy);
-        default:
-            return static_cast<BitBoard>(0); // For EMPTY, no attacks
-        }
-        
     }
 };
 
-MagicBoards init_magic_boards() noexcept;
+extern MagicBoards MAGIC_BOARD;
+
+void init_magic_boards(MagicBoards &mb);
 
 constexpr BitBoard FileA = 0x0101010101010101ULL;
 constexpr BitBoard FileB = 0x0202020202020202ULL;
@@ -164,6 +162,10 @@ constexpr BitBoard Rank5 = 0x000000FF00000000ULL;
 constexpr BitBoard Rank6 = 0x0000FF0000000000ULL;
 constexpr BitBoard Rank7 = 0x00FF000000000000ULL;
 constexpr BitBoard Rank8 = 0xFF00000000000000ULL;
+
+constexpr BitBoard bitboard_get_rank(SquareIndex s) noexcept { return Rank1 << (8 * (s >> 3)); }
+
+constexpr BitBoard bitboard_get_file(SquareIndex s) noexcept { return FileA << (s & 7); }
 
 constexpr BitBoard NotFileA = ~FileA;
 constexpr BitBoard NotFileB = ~FileB;

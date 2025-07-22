@@ -1,7 +1,6 @@
 #pragma once
 #include <cstdint>
 #include "board.hpp"
-#include "types.hpp"
 #include "move.hpp"
 #include "bitboard.hpp"
 
@@ -36,5 +35,5 @@ bool analyzer_get_is_stalemate(Board *board, Color friendly);
 
 bool analyzer_is_insufficient_material(const Board *board);
 
-static MagicBoards MAGIC_BOARD = init_magic_boards();
+void analyzer_init_magic_board();
 } // namespace game

@@ -28,6 +28,14 @@ enum File : uint8_t { FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FI
 
 enum Rank : uint8_t { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_COUNT };
 
+constexpr Rank rank_of (const SquareIndex sq) noexcept {
+    return static_cast<Rank>(std::to_underlying(sq) >> 3);
+}
+
+constexpr File file_of (const SquareIndex sq) noexcept {
+    return static_cast<File>(std::to_underlying(sq) & 7);
+}
+
 using RankArray = std::array<Piece, static_cast<std::size_t>(std::to_underlying(FILE_COUNT))>;
 using BoardArray = std::array<RankArray, static_cast<std::size_t>(std::to_underlying(RANK_COUNT))>;
 // clang-format off

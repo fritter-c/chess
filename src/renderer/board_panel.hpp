@@ -1,8 +1,6 @@
 #pragma once
 #include "../game/game.hpp"
 #include "visual_board.hpp"
-#include "vector.hpp"
-#include <string.hpp>
 namespace renderer {
 struct BoardPanel {
     VisualBoard chess_board{};

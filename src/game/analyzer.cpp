@@ -3,9 +3,16 @@
 #include <cstdint>
 #include "board.hpp"
 #include "move.hpp"
-#define BITBOARD_VERSION 1
 namespace game {
-
+MagicBoards MAGIC_BOARD;
+void analyzer_init_magic_board() {
+    static bool initialized = false;
+    if (initialized) {
+        return;
+    }
+    initialized = true;
+    init_magic_boards(MAGIC_BOARD);
+}
 // Offsets for king moves (also used for pawn attack deltas and sliders' increment):
 static constexpr std::array<std::pair<int32_t, int32_t>, 8> KING_DELTAS = {{{+1, 0}, {-1, 0}, {0, +1}, {0, -1}, {+1, +1}, {+1, -1}, {-1, +1}, {-1, -1}}};
 
@@ -84,7 +91,7 @@ static bool analyzer_add_move(Board *board, const int32_t from_row, const int32_
     return false;
 }
 
-static void analyzer_get_pawn_moves(Board *board, const Piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
+static void analyzer_get_pawn_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
     const BitBoard empty = board->pieces_by_type[EMPTY];
     const BitBoard enemy_pieces = board->pieces_by_color[enemy];
     const BitBoard en_passant_rank = bitboard_from_squares(board->current_state->en_passant_index);
@@ -101,7 +108,7 @@ static void analyzer_get_pawn_moves(Board *board, const Piece, const int32_t row
     moves.bits |= pawn_attacks & en_passant_rank;
 }
 
-static void analyzer_get_king_moves(Board *board, const Piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
+static void analyzer_get_king_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
     const BitBoard king_attacks = MAGIC_BOARD.king_attacks[Board::square_index(row, col)]; // King attacks are in a table (All neighbor cells)
     const Color side = ~enemy;                                                             // Friendly color
     const BitBoard empty = board->pieces_by_type[EMPTY];                                   // Where the squares are empty.
@@ -115,42 +122,25 @@ static void analyzer_get_king_moves(Board *board, const Piece, const int32_t row
     moves.bits |= king_attacks & (board->pieces_by_color[enemy] | board->pieces_by_type[EMPTY]); // Just the king attacks. The move is available if the dest. cell is enemy or empty
 }
 
-static void analyzer_get_knight_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
+static void analyzer_get_knight_moves(const Board *board, const Piece , const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
     moves.bits |= MAGIC_BOARD.knight_attackers[Board::square_index(row, col)] & (board->pieces_by_color[enemy] | board->pieces_by_type[EMPTY]); // Knight moves are just attacks
 }
 
-static void analyzer_get_bishop_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
-    const BitBoard bishop_attacks = MAGIC_BOARD.bishop_attacks[Board::square_index(row, col)];
+static void analyzer_get_bishop_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color, AvailableMoves &moves) {
+    const BitBoard occ = board->pieces_by_type[ANY];
+    const BitBoard bishop_attacks = MAGIC_BOARD.slider_attacks<BISHOP>(occ, Board::square_index(row, col));
     moves.bits |= bishop_attacks;
 }
 
-static void analyzer_get_rook_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
-    const Color friendly = ~enemy;
-    const BitBoard occupancy = board->pieces_by_color[enemy] | board->pieces_by_color[friendly];
-    static constexpr std::array<std::pair<int32_t, int32_t>, 4> deltas = {{
-        {+1, 0}, // north
-        {-1, 0}, // south
-        {0, +1}, // east
-        {0, -1}  // west
-    }};
-
-    for (auto [dr, dc] : deltas) {
-        int32_t r = row + dr, c = col + dc;
-        while (r >= RANK_1 && r < RANK_COUNT && c >= FILE_A && c < FILE_COUNT) {
-            const SquareIndex sq = Board::square_index(r, c);
-            const BitBoard bit = BitBoard{1} << sq;
-            moves.bits |= bit;
-            if (occupancy & bit)
-                break;
-            r += dr;
-            c += dc;
-        }
-    }
+static void analyzer_get_rook_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color, AvailableMoves &moves) {
+    const BitBoard occ = board->pieces_by_type[ANY];
+    const BitBoard rook_attacks = MAGIC_BOARD.slider_attacks<ROOK>(occ, Board::square_index(row, col));
+    moves.bits |= rook_attacks;
 }
 
-static void analyzer_get_queen_moves(Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
-    const BitBoard queen_attacks = MAGIC_BOARD.queen_attacks(Board::square_index(row, col));
-    moves.bits |= queen_attacks;
+static void analyzer_get_queen_moves(const Board *board, const Piece piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
+    analyzer_get_bishop_moves(board, piece, row, col, enemy, moves);
+    analyzer_get_rook_moves(board, piece, row, col, enemy, moves);
 }
 
 AvailableMoves analyzer_get_pseudo_legal_moves_for_piece(Board *board, const int32_t row, const int32_t col) {

@@ -1,6 +1,7 @@
 #include "board.hpp"
 #include <cmath>
 #include "types.hpp"
+#include "analyzer.hpp"
 
 namespace game {
 void Board::populate() {
@@ -25,6 +26,7 @@ void Board::populate_bitboards() {
 void Board::init() {
     populate();
     populate_bitboards();
+    analyzer_init_magic_board();
     state_history.clear();
     state_history.push({});
     current_state = state_history.current();
@@ -224,25 +226,5 @@ gtr::large_string Board::board_to_string() const {
     return board_str;
 }
 
-gtr::large_string Board::print_bitboard(const BitBoard board) {
-    gtr::large_string board_str;
-    for (int32_t row = 7; row >= 0; --row) {
-        board_str += gtr::format("%d. ", row + 1);
-        for (int32_t col = 0; col < 8; ++col) {
-            if (bitboard_get(board, row, col)) {
-                board_str += "1 ";
-            } else {
-                board_str += "0 ";
-            }
-        }
-        board_str += "\n";
-    }
-    static constexpr char files[] = "abcdefgh";
-    board_str += "   ";
-    for (int32_t col = 0; col < 8; ++col) {
-        board_str += files[col];
-        board_str += " ";
-    }
-    return board_str;
-}
+
 } // namespace game

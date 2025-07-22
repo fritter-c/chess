@@ -1,22 +1,8 @@
 #include "bitboard.hpp"
+#include <iostream>
+#include "board.hpp"
 #include "types.hpp"
 namespace game {
-inline int popcount(uint64_t x) { return __builtin_popcountll(x); }
-
-// build the i-th subset of bits under `mask`
-inline uint64_t build_occupancy(uint64_t mask, int subset_index) {
-    uint64_t occ = 0;
-    // iterate bits of mask
-    uint64_t m = mask;
-    while (m) {
-        int32_t bit = std::countr_zero(m);
-        m &= m - 1;
-        if (subset_index & 1)
-            occ |= (1ULL << bit);
-        subset_index >>= 1;
-    }
-    return occ;
-}
 
 static constexpr std::array<std::pair<int, int>, 4> rook_dirs{{
     {+1, 0},
@@ -25,7 +11,6 @@ static constexpr std::array<std::pair<int, int>, 4> rook_dirs{{
     {0, -1},
 }};
 
-// diagonal directions for bishops
 static constexpr std::array<std::pair<int, int>, 4> bishop_dirs{{
     {+1, +1},
     {+1, -1},
@@ -33,16 +18,17 @@ static constexpr std::array<std::pair<int, int>, 4> bishop_dirs{{
     {-1, -1},
 }};
 
-constexpr BitBoard sliding_attacks_rook(SquareIndex sq, BitBoard occ) noexcept {
+constexpr BitBoard sliding_attacks_rook(const SquareIndex sq, const BitBoard occ) noexcept {
     BitBoard attacks = 0;
-    int r = int(sq) / 8;
-    int c = int(sq) % 8;
+    const int32_t r = std::to_underlying(sq) / 8;
+    const int32_t c = std::to_underlying(sq) % 8;
 
     for (auto [dr, dc] : rook_dirs) {
-        int rr = r + dr, cc = c + dc;
+        int32_t rr = r + dr;
+        int32_t cc = c + dc;
         while (rr >= 0 && rr < 8 && cc >= 0 && cc < 8) {
-            int nsq = rr * 8 + cc;
-            BitBoard bit = BitBoard{1} << nsq;
+            const int32_t nsq = rr * 8 + cc;
+            const BitBoard bit = BitBoard{1} << nsq;
             attacks |= bit;
             if (occ & bit) // stop at first blocker
                 break;
@@ -50,20 +36,20 @@ constexpr BitBoard sliding_attacks_rook(SquareIndex sq, BitBoard occ) noexcept {
             cc += dc;
         }
     }
-
     return attacks;
 }
 
-constexpr BitBoard sliding_attacks_bishop(SquareIndex sq, BitBoard occ) noexcept {
+constexpr BitBoard sliding_attacks_bishop(const SquareIndex sq, const BitBoard occ) noexcept {
     BitBoard attacks = 0;
-    int r = int(sq) / 8;
-    int c = int(sq) % 8;
+    const int32_t r = std::to_underlying(sq) / 8;
+    const int32_t c = std::to_underlying(sq) % 8;
 
     for (auto [dr, dc] : bishop_dirs) {
-        int rr = r + dr, cc = c + dc;
+        int32_t rr = r + dr;
+        int32_t cc = c + dc;
         while (rr >= 0 && rr < 8 && cc >= 0 && cc < 8) {
-            int nsq = rr * 8 + cc;
-            BitBoard bit = BitBoard{1} << nsq;
+            const int32_t nsq = rr * 8 + cc;
+            const BitBoard bit = BitBoard{1} << nsq;
             attacks |= bit;
             if (occ & bit) // stop at first blocker
                 break;
@@ -75,53 +61,7 @@ constexpr BitBoard sliding_attacks_bishop(SquareIndex sq, BitBoard occ) noexcept
     return attacks;
 }
 
-constexpr BitBoard sliding_attacks(SquareIndex sq, BitBoard occ, bool is_rook) noexcept { return is_rook ? sliding_attacks_rook(sq, occ) : sliding_attacks_bishop(sq, occ); }
-inline uint64_t random_magic_candidate(std::mt19937_64 &rng) { return rng() & rng() & rng(); }
-
-inline void find_magics_for_slider(const std::array<BitBoard, 64> &precomputed_full_attacks, const std::array<BitBoard, 64> &mask_array, std::array<uint64_t, 64> &out_magic,
-                                   std::array<int, 64> &out_shift, bool is_rook) {
-    std::mt19937_64 rng(0xDEADBEEF);
-
-    for (int sq = 0; sq < 64; ++sq) {
-        uint64_t mask = mask_array[sq];
-        int bits = popcount(mask);
-        int table_size = 1 << bits;
-
-        // 1) generate all possible occupancies & true attacks
-        gtr::vector<uint64_t> occs(table_size);
-        gtr::vector<BitBoard> trues(table_size);
-        for (int i = 0; i < table_size; ++i) {
-            occs[i] = build_occupancy(mask, i);
-            trues[i] = sliding_attacks(SquareIndex(sq), occs[i], is_rook);
-        }
-
-        int shift = 64 - bits;
-        while (true) {
-            uint64_t magic = random_magic_candidate(rng);
-            gtr::vector<BitBoard> table(table_size, 0ULL);
-            bool collision = false;
-
-            for (int i = 0; i < table_size; ++i) {
-                uint64_t idx = (occs[i] * magic) >> shift;
-                if (table[idx] == 0ULL) {
-                    table[idx] = trues[i];
-                } else if (table[idx] != trues[i]) {
-                    collision = true;
-                    break;
-                }
-            }
-
-            if (!collision) {
-                out_magic[sq] = magic;
-                out_shift[sq] = shift;
-                break;
-            }
-            // else try another magic candidate
-        }
-    }
-}
-
-template <typename Offsets> constexpr BitBoard make_attack_mask(int32_t square, const Offsets &offsets) noexcept {
+template <typename Offsets> constexpr BitBoard make_attack_mask(const int32_t square, const Offsets &offsets) noexcept {
     const int32_t r = square / 8;
     const int32_t c = square % 8;
     BitBoard bb = 0;
@@ -133,10 +73,101 @@ template <typename Offsets> constexpr BitBoard make_attack_mask(int32_t square, 
     }
     return bb;
 }
+void fill_sliders_magic(MagicBoards &mb) {
+    static constexpr int MAGIC_SEEDS[8] = {728, 10316, 55013, 32803, 12281, 15100, 16645, 255};
+    {
+        std::array<BitBoard, 4096> occupancy{};
+        std::array<BitBoard, 4096> reference{};
+        std::mt19937_64 rng; // default seed is fine
+        int32_t table_size = 0;
+        int32_t rook_offset = 0;
 
-MagicBoards init_magic_boards() noexcept {
+        for (int32_t sq = A1; sq < SQUARE_COUNT; ++sq) {
+            const auto mask = mb.rook_mask[sq];
+            const int32_t bits = std::popcount(mask);
+
+            // record shift
+            mb.rook_shift[sq] = 64 - bits;
+            mb.rook_offset[sq] = rook_offset;
+            const auto attacks = mb.rook_attack_table.data() + rook_offset;
+
+            BitBoard b = 0;
+            table_size = 0;
+            do {
+                occupancy[table_size] = b;
+                reference[table_size] = sliding_attacks_rook(static_cast<SquareIndex>(sq), b);
+                ++table_size;
+                b = b - mask & mask;
+            } while (b);
+            
+            uint64_t &best_magic{mb.rook_magic[sq]};
+            rng.seed(MAGIC_SEEDS[rank_of(static_cast<SquareIndex>(sq))]);
+
+            while (true) {
+                for (best_magic = 0; std::popcount((best_magic * mask) >> 56) < 6;) best_magic = rng() & rng() & rng();
+                bool collision = false;
+                for (int32_t i = 0; i < table_size; ++i) {
+                    const auto idx = static_cast<uint32_t>(((occupancy[i] & mask) * best_magic) >> mb.rook_shift[sq]);
+                    if (attacks[idx] != 0 && attacks[idx] != reference[i]) {
+                        collision = true;
+                        break;
+                    }
+                    attacks[idx] = reference[i];
+                }
+                if (!collision)
+                    break;
+                std::memset(attacks, 0, sizeof(BitBoard) * table_size); // reset attacks
+            }
+            rook_offset += table_size;
+        }
+    }
+    {
+        std::array<BitBoard, 4096> occupancy{};
+        std::array<BitBoard, 4096> reference{};
+        std::mt19937_64 rng;
+        int32_t table_size = 0;
+        int32_t bishop_offset = 0;
+        for (int sq = A1; sq < SQUARE_COUNT; ++sq) {
+            rng.seed(MAGIC_SEEDS[rank_of(static_cast<SquareIndex>(sq))]);
+            const auto mask = mb.bishop_mask[sq];
+            const int32_t bits = std::popcount(mask);
+
+            mb.bishop_shift[sq] = 64 - bits;
+            mb.bishop_offset[sq] = bishop_offset;
+            const auto attacks = mb.bishop_attack_table.data() + bishop_offset;
+
+            BitBoard b = 0;
+            table_size = 0;
+            do {
+                occupancy[table_size] = b;
+                reference[table_size] = sliding_attacks_bishop(static_cast<SquareIndex>(sq), b);
+                ++table_size;
+                b = b - mask & mask;
+            } while (b);
+
+            uint64_t &best_magic{mb.bishop_magic[sq]};
+            rng.seed(MAGIC_SEEDS[rank_of(static_cast<SquareIndex>(sq))]);
+            while (true) {
+                for (best_magic = 0; std::popcount((best_magic * mask) >> 56) < 6;) best_magic = rng() & rng() & rng();
+                bool collision = false;
+                for (int32_t i = 0; i < table_size; ++i) {
+                    const auto idx = static_cast<uint32_t>(((occupancy[i] & mask) * best_magic) >> mb.bishop_shift[sq]);
+                    if (attacks[idx] != 0 && attacks[idx] != reference[i]) {
+                        collision = true;
+                        break;
+                    }
+                    attacks[idx] = reference[i];
+                }
+                if (!collision)
+                    break;
+                std::memset(attacks, 0, sizeof(BitBoard) * table_size); // reset attacks
+            }
+            bishop_offset += table_size;
+        }
+    }
+}
+void init_magic_boards(MagicBoards &mb) {
     // pawn attacks
-    MagicBoards mb{};
     for (int32_t color = 0; color < COLOR_COUNT; ++color) {
         int32_t pawn_dr = (color == 0 ? +1 : -1);
         for (int32_t sq = 0; sq < SQUARE_COUNT; ++sq) { mb.pawn_attacks[color][sq] = make_attack_mask(sq, std::array{std::pair{pawn_dr, -1}, std::pair{pawn_dr, +1}}); }
@@ -145,7 +176,8 @@ MagicBoards init_magic_boards() noexcept {
     for (int32_t color = 0; color < COLOR_COUNT; ++color) {
         const int32_t dr = (color == 0 ? +1 : -1);
         for (int32_t sq = 0; sq < SQUARE_COUNT; ++sq) {
-            const int32_t r = sq / 8, c = sq % 8;
+            const int32_t r = sq / 8;
+            const int32_t c = sq % 8;
             BitBoard push_bb = 0;
 
             const int32_t r1 = r + dr;
@@ -208,35 +240,32 @@ MagicBoards init_magic_boards() noexcept {
             }
         }
 
-        const int32_t r0 = sq / 8;
-        const int32_t c0 = sq % 8;
-
-        // rook mask: all squares along rank/file *excluding* the board edges
-        BitBoard rm = 0;
-        for (auto [dr, dc] : rook_dirs) {
-            int32_t r = r0 + dr, c = c0 + dc;
-            while (r > 0 && r < 7 && c > 0 && c < 7) {
-                rm |= BitBoard{1} << (r * 8 + c);
-                r += dr;
-                c += dc;
-            }
-        }
-        mb.rook_mask[sq] = rm;
-
-        // bishop mask: same idea on diagonals
-        BitBoard bm = 0;
-        for (auto [dr, dc] : bishop_dirs) {
-            int32_t r = r0 + dr, c = c0 + dc;
-            while (r > 0 && r < 7 && c > 0 && c < 7) {
-                bm |= BitBoard{1} << (r * 8 + c);
-                r += dr;
-                c += dc;
-            }
-        }
-        mb.bishop_mask[sq] = bm;
+        const BitBoard edges = ((Rank1 | Rank8) & ~bitboard_get_rank(static_cast<SquareIndex>(sq)) | (FileA | FileH) & ~bitboard_get_file(static_cast<SquareIndex>(sq)));
+        mb.rook_mask[sq] = sliding_attacks_rook(static_cast<SquareIndex>(sq), 0) & ~edges;
+        mb.bishop_mask[sq] = sliding_attacks_bishop(static_cast<SquareIndex>(sq), 0) & ~edges;
     }
 
-    return mb;
+    fill_sliders_magic(mb);
 }
-
+gtr::large_string print_bitboard(const BitBoard board) {
+    gtr::large_string board_str;
+    for (int32_t row = 7; row >= 0; --row) {
+        board_str += gtr::format("%d. ", row + 1);
+        for (int32_t col = 0; col < 8; ++col) {
+            if (bitboard_get(board, row, col)) {
+                board_str += "1 ";
+            } else {
+                board_str += "0 ";
+            }
+        }
+        board_str += "\n";
+    }
+    static constexpr char files[] = "abcdefgh";
+    board_str += "   ";
+    for (int32_t col = 0; col < 8; ++col) {
+        board_str += files[col];
+        board_str += " ";
+    }
+    return board_str;
+}
 } // namespace game

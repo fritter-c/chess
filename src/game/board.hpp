@@ -108,7 +108,7 @@ struct Board {
         bitboard_set(pieces_by_type[ANY], s);
         bitboard_clear(pieces_by_type[EMPTY], s);
     }
-    static gtr::large_string print_bitboard(BitBoard board);
+
 
     template <PieceType T, Color C> 
     constexpr BitBoard get_piece_bitboard() const {
