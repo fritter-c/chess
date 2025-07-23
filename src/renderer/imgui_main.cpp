@@ -7,7 +7,7 @@
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 
-constexpr auto VSYNC_HINT{1}; // 1 for vsync, 0 for no vsync
+constexpr auto VSYNC_HINT{0}; // 1 for vsync, 0 for no vsync
 
 namespace renderer {
     enum FrameAction {

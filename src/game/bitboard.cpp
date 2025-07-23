@@ -1,8 +1,7 @@
 #include "bitboard.hpp"
-#include <iostream>
 #include "board.hpp"
 #include "types.hpp"
-#include "unordered_set"
+#include "unordered_map"
 namespace game {
 
 static constexpr std::array<std::pair<int, int>, 4> rook_dirs{{
@@ -76,7 +75,7 @@ template <typename Offsets> constexpr BitBoard make_attack_mask(const int32_t sq
 }
 
 void fill_sliders_magic(MagicBoards &mb) {
-    static constexpr int MAGIC_SEEDS[8] = {728, 10316, 55013, 32803, 12281, 15100, 16645, 255};
+    static constexpr std::array MAGIC_SEEDS = {728, 10316, 55013, 32803, 12281, 15100, 16645, 255};
     std::vector<BitBoard> rook_attack_table(0x19000, 0);
     std::vector<BitBoard> bishop_attack_table(0x1480, 0);
     {
@@ -99,10 +98,10 @@ void fill_sliders_magic(MagicBoards &mb) {
                          576742238286512133ULL,  563135979736066ULL,     4613955412614514692ULL, 9224639225096570914ULL};
         for (int32_t sq = A1; sq < SQUARE_COUNT; ++sq) {
             const auto mask = mb.rook_mask[sq];
-            const int32_t bits = std::popcount(mask);
+            const int64_t bits = popcnt(mask);
 
             // record shift
-            mb.rook_shift[sq] = 64 - bits;
+            mb.rook_shift[sq] = 64 - static_cast<int32_t>(bits);
             mb.rook_offset[sq] = rook_offset;
             const auto attacks = rook_attack_table.data() + rook_offset;
 
@@ -118,7 +117,7 @@ void fill_sliders_magic(MagicBoards &mb) {
             uint64_t &best_magic{mb.rook_magic[sq]};
             rng.seed(MAGIC_SEEDS[rank_of(static_cast<SquareIndex>(sq))]);
             while (true) {
-                while (std::popcount((best_magic * mask) >> 56) < 6) best_magic = rng() & rng() & rng();
+                while (popcnt((best_magic * mask) >> 56) < 6) best_magic = rng() & rng() & rng();
                 for (int32_t i = 0; i < table_size; ++i) {
                     const auto idx = static_cast<uint32_t>(((occupancy[i] & mask) * best_magic) >> mb.rook_shift[sq]);
                     if (attacks[idx] != 0 && attacks[idx] != reference[i]) {
@@ -144,9 +143,9 @@ void fill_sliders_magic(MagicBoards &mb) {
         for (int sq = A1; sq < SQUARE_COUNT; ++sq) {
             rng.seed(MAGIC_SEEDS[rank_of(static_cast<SquareIndex>(sq))]);
             const auto mask = mb.bishop_mask[sq];
-            const int32_t bits = std::popcount(mask);
+            const int64_t bits = popcnt(mask);
 
-            mb.bishop_shift[sq] = 64 - bits;
+            mb.bishop_shift[sq] = 64 - static_cast<int32_t>(bits);
             mb.bishop_offset[sq] = bishop_offset;
             // Precomputed bishop magic
             mb.bishop_magic = {866951793761330944ULL,  4661933617877632ULL,     581035272595047432ULL,  289431044996761600ULL,   12390533972426754ULL,   113154109003530752ULL,
@@ -174,7 +173,7 @@ void fill_sliders_magic(MagicBoards &mb) {
             uint64_t &best_magic{mb.bishop_magic[sq]};
             rng.seed(MAGIC_SEEDS[rank_of(static_cast<SquareIndex>(sq))]);
             while (true) {
-                while (std::popcount((best_magic * mask) >> 56) < 6) best_magic = rng() & rng() & rng();
+                while (popcnt((best_magic * mask) >> 56) < 6) best_magic = rng() & rng() & rng();
                 for (int32_t i = 0; i < table_size; ++i) {
                     const auto idx = static_cast<uint32_t>(((occupancy[i] & mask) * best_magic) >> mb.bishop_shift[sq]);
                     if (attacks[idx] != 0 && attacks[idx] != reference[i]) {
@@ -226,8 +225,9 @@ void fill_sliders_magic(MagicBoards &mb) {
         }
     }
 }
-void init_magic_boards(MagicBoards &mb) {
+MagicBoards init_magic_boards() {
     // pawn attacks
+    MagicBoards mb{};
     for (int32_t color = 0; color < COLOR_COUNT; ++color) {
         int32_t pawn_dr = (color == 0 ? +1 : -1);
         for (int32_t sq = 0; sq < SQUARE_COUNT; ++sq) { mb.pawn_attacks[color][sq] = make_attack_mask(sq, std::array{std::pair{pawn_dr, -1}, std::pair{pawn_dr, +1}}); }
@@ -295,6 +295,7 @@ void init_magic_boards(MagicBoards &mb) {
     }
 
     fill_sliders_magic(mb);
+    return mb;
 }
 gtr::large_string print_bitboard(const BitBoard board) {
     gtr::large_string board_str;

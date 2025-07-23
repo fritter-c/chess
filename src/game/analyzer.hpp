@@ -35,13 +35,10 @@ inline bool analyzer_is_move_legal(Board *board, const SimpleMove &move, Promoti
     return analyzer_is_move_legal(board, analyzer_get_move_from_simple(board, move, promotion_type));
 }
 
-int32_t analyzer_get_move_count(Board *board, Color color);
-
-int32_t analyzer_get_legal_move_count(Board *board, Color color);
+int64_t analyzer_get_legal_move_count(Board *board, Color color);
 
 bool analyzer_get_is_stalemate(Board *board, Color friendly);
 
 bool analyzer_is_insufficient_material(const Board *board);
 
-void analyzer_init_magic_board();
 } // namespace game

@@ -4,20 +4,9 @@
 #include <iostream>
 #include "board.hpp"
 #include "move.hpp"
+#include "bitboard.hpp"
 namespace game {
-MagicBoards MAGIC_BOARD;
-void analyzer_init_magic_board() {
-    static bool initialized = false;
-    if (initialized) {
-        return;
-    }
-    initialized = true;
-    init_magic_boards(MAGIC_BOARD);
-}
-
-// Offsets for king moves (also used for pawn attack deltas and sliders' increment):
-static constexpr std::array<std::pair<int32_t, int32_t>, 8> KING_DELTAS = {{{+1, 0}, {-1, 0}, {0, +1}, {0, -1}, {+1, +1}, {+1, -1}, {-1, +1}, {-1, -1}}};
-
+const MagicBoards MAGIC_BOARD = init_magic_boards();
 static bool analyzer_is_pawn_attacking(const Board *board, const SquareIndex index, const Color attacker) {
     return MAGIC_BOARD.pawn_attackers[attacker][index] & board->pieces_by_type[PAWN] & board->pieces_by_color[attacker];
 }
@@ -58,7 +47,7 @@ bool analyzer_is_cell_under_attack_by_color(const Board *board, const int32_t ro
 static void analyzer_get_pawn_moves(const Board *board, const Piece, const int32_t row, const int32_t col, const Color enemy, AvailableMoves &moves) {
     const BitBoard empty = board->pieces_by_type[EMPTY];
     const BitBoard enemy_pieces = board->pieces_by_color[enemy];
-    const BitBoard en_passant_rank = bitboard_from_squares(board->current_state->en_passant_index);
+    const BitBoard en_passant_rank = EN_PASSANT_CONVERSION_TABLE[enemy][board->current_state->en_passant_index + 1];
     const BitBoard pawn_attacks = MAGIC_BOARD.pawn_attacks[~enemy][Board::square_index(row, col)];
     const BitBoard pawn_moves = MAGIC_BOARD.pawn_moves[~enemy][Board::square_index(row, col)];
     const int32_t inc = RowIncrement(~enemy);
@@ -112,7 +101,7 @@ static void analyzer_get_queen_moves(const Board *board, const Piece piece, cons
     analyzer_get_rook_moves(board, piece, row, col, enemy, moves);
 }
 
-AvailableMoves analyzer_get_pseudo_legal_moves_for_piece(Board *board, const int32_t row, const int32_t col) {
+AvailableMoves analyzer_get_pseudo_legal_moves_for_piece(const Board *board, const int32_t row, const int32_t col) {
     using enum PieceType;
     AvailableMoves moves{};
     moves.origin_index = Board::get_index(row, col);
@@ -131,13 +120,12 @@ AvailableMoves analyzer_get_pseudo_legal_moves_for_piece(Board *board, const int
     return moves;
 }
 
-AvailableMoves analyzer_filter_legal_moves(Board *board, AvailableMoves moves) {
+AvailableMoves analyzer_filter_legal_moves(Board *board,const AvailableMoves moves) {
     AvailableMoves legal{};
     SimpleMove move{};
     move.from_row = Board::get_row(moves.origin_index);
     move.from_col = Board::get_col(moves.origin_index);
     legal.origin_index = moves.origin_index;
-    int count = moves.move_count();
     for (auto it = BitBoardIterator::begin(moves.bits); it != BitBoardIterator::end(); ++it) {
         move.to_row = Board::get_row(*it);
         move.to_col = Board::get_col(*it);
@@ -188,19 +176,8 @@ Move analyzer_get_move_from_simple(Board *board, const SimpleMove &move, Promoti
     return result;
 }
 
-int32_t analyzer_get_move_count(Board *board, Color color) {
-    int32_t count = 0;
-    for (uint8_t i = 0; i < SQUARE_COUNT; ++i) {
-        if (PIECE_COLOR(board->pieces[i]) == color) {
-            const auto moves = analyzer_get_pseudo_legal_moves_for_piece(board, Board::get_row(i), Board::get_col(i));
-            count += moves.move_count();
-        }
-    }
-    return count;
-}
-
-int32_t analyzer_get_legal_move_count(Board *board, Color color) {
-    int32_t count = 0;
+int64_t analyzer_get_legal_move_count(Board *board, Color color) {
+    int64_t count = 0;
     for (uint8_t i = 0; i < SQUARE_COUNT; ++i) {
         if (PIECE_COLOR(board->pieces[i]) == color) {
             const auto moves = analyzer_get_pseudo_legal_moves_for_piece(board, Board::get_row(i), Board::get_col(i));
@@ -214,8 +191,6 @@ int32_t analyzer_get_legal_move_count(Board *board, Color color) {
 bool analyzer_get_is_stalemate(Board *board, Color friendly) { return analyzer_get_legal_move_count(board, friendly) == 0 && !analyzer_is_color_in_checkmate(board, friendly); }
 
 bool analyzer_is_insufficient_material(const Board *board) {
-    using std::popcount;
-
     // 1) any pawn, rook or queen (of either color) → sufficient material
     if (board->pieces_by_type[PAWN] != 0ULL)
         return false;
@@ -233,14 +208,14 @@ bool analyzer_is_insufficient_material(const Board *board) {
     const BitBoard black_bb = board->pieces_by_color[PIECE_BLACK];
 
     // count each
-    const int32_t white_bishops = popcount(bishop_bb & white_bb);
-    const int32_t black_bishops = popcount(bishop_bb & black_bb);
-    const int32_t white_knights = popcount(knight_bb & white_bb);
-    const int32_t black_knights = popcount(knight_bb & black_bb);
+    const int64_t white_bishops = popcnt(bishop_bb & white_bb);
+    const int64_t black_bishops = popcnt(bishop_bb & black_bb);
+    const int64_t white_knights = popcnt(knight_bb & white_bb);
+    const int64_t black_knights = popcnt(knight_bb & black_bb);
 
-    const int32_t white_minors = white_bishops + white_knights;
-    const int32_t black_minors = black_bishops + black_knights;
-    const int32_t total_minors = white_minors + black_minors;
+    const int64_t white_minors = white_bishops + white_knights;
+    const int64_t black_minors = black_bishops + black_knights;
+    const int64_t total_minors = white_minors + black_minors;
 
     // 4) the same three insufficient‐material cases:
     //    K vs. K
@@ -314,11 +289,6 @@ bool analyzer_is_move_legal(Board *board, const Move &move) {
             }
         }
     } else {
-        if (move.is_en_passant()) {
-            if (PIECE_COLOR(board->en_passant_piece()) == friendly) {
-                return false; 
-            }
-        }
         BoardState state{};
         board->move_stateless(move, state);
         if (analyzer_is_color_in_check(board, friendly)) {

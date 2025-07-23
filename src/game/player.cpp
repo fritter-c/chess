@@ -1,5 +1,6 @@
 #include "player.hpp"
 #include "analyzer.hpp"
+#include <random>
 
 namespace game {
 Move Human::get_move(Board &) { return {}; }
@@ -31,8 +32,8 @@ Move DrunkMan::get_move(Board &b) {
     const AvailableMoves &moves = moves_per_piece[piece_selected];
     const auto count = moves.move_count();
 
-    std::uniform_int_distribution move_dist(0, count - 1);
-    int32_t move_selected = move_dist(gen);
+    std::uniform_int_distribution move_dist(0, static_cast<int32_t>(count - 1));
+    int64_t move_selected = move_dist(gen);
 
     for (int32_t i = 0; i < 64; i++) {
         if (moves.get(i)) {

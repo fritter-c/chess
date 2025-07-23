@@ -26,7 +26,6 @@ void Board::populate_bitboards() {
 void Board::init() {
     populate();
     populate_bitboards();
-    analyzer_init_magic_board();
     state_history.clear();
     state_history.push({});
     current_state = state_history.current();
@@ -149,7 +148,6 @@ static void apply_move(Board &board, const Move move, BoardState &state) {
 }
 
 void Board::move_stateless(const Move m, BoardState &state) {
-    Assert(board_can_move_basic(this, m.get_origin(), m.get_destination()), "Invalid move");
     state.last_move = m;
     apply_move(*this, m, state);
 }

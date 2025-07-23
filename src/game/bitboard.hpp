@@ -1,9 +1,22 @@
 #pragma once
+#include <os.hpp>
 #include <random>
 #include <string.hpp>
 #include "types.hpp"
 namespace game {
 using BitBoard = uint64_t;
+
+inline int64_t popcnt(BitBoard bb) {
+#if defined(_MSC_VER)
+    return _mm_popcnt_u64(bb);
+#elif defined(__has_builtin)
+#if __has_builtin(__builtin_popcountll)
+    return __builtin_popcountll(bb);
+#endif
+#else
+    return std::popcount(bb);
+#endif
+}
 
 static constexpr BitBoard RANK_MASK = 0xFFULL;
 
@@ -19,7 +32,7 @@ constexpr bool bitboard_get(const BitBoard &bit, const uint32_t r, const uint32_
 
 constexpr bool bitboard_get(const BitBoard &bit, const uint32_t sq) noexcept { return (bit & static_cast<BitBoard>(1) << sq) != 0; }
 
-constexpr int32_t bitboard_count(const BitBoard &bit) noexcept { return std::popcount(bit); }
+inline int64_t bitboard_count(const BitBoard &bit) noexcept { return popcnt(bit); }
 
 constexpr void bitboard_move_bit(BitBoard &b, const uint32_t from_square, const uint32_t to_square) noexcept {
     b = b & ~(static_cast<BitBoard>(1) << from_square) | static_cast<BitBoard>(1) << to_square;
@@ -46,17 +59,17 @@ inline int32_t bitboard_index(const BitBoard bb) noexcept {
     return std::countr_zero(bb);
 }
 
-inline BitBoard bitboard_set_bit_if_set(BitBoard bb, SquareIndex sq, SquareIndex dest) noexcept {
+inline BitBoard bitboard_set_bit_if_set(BitBoard bb,const SquareIndex sq,const SquareIndex dest) noexcept {
     Assert(sq < SQUARE_COUNT, "bitboard_set_bit_if_set: square index out of bounds");
     bb |= ((bb >> sq) << 1ULL) << dest;
     return bb;
 }
 
-struct BitBoardIterator{
+struct BitBoardIterator {
     BitBoard bits;
     SquareIndex index{A1};
 
-    BitBoardIterator(BitBoard b) : bits(b) {
+    explicit BitBoardIterator(BitBoard b) : bits(b) {
         // go to the first set bit
         if (bits == 0) {
             index = SQUARE_COUNT; // end of iteration
@@ -66,9 +79,7 @@ struct BitBoardIterator{
         }
     }
 
-    SquareIndex operator*() const {
-        return index;
-    }
+    SquareIndex operator*() const { return index; }
 
     BitBoardIterator &operator++() {
         if (bits == 0) {
@@ -80,21 +91,11 @@ struct BitBoardIterator{
         return *this;
     }
 
-    bool operator!=(const BitBoardIterator &other) const {
-        return bits != other.bits || index != other.index;
-    }
+    bool operator==(const BitBoardIterator &other) const = default;
 
-    bool operator==(const BitBoardIterator &other) const {
-        return bits == other.bits && index == other.index;
-    }
+    static BitBoardIterator begin(BitBoard b) { return BitBoardIterator{b}; }
 
-    static BitBoardIterator begin(BitBoard b) {
-        return BitBoardIterator(b);
-    }
-
-    static BitBoardIterator end() {
-        return BitBoardIterator(0);
-    }
+    static BitBoardIterator end() { return BitBoardIterator{0}; }
 };
 
 enum BitBoardDirection : int8_t {
@@ -120,6 +121,25 @@ static constexpr std::array<std::array<SquareIndex, 3>, 2> CASTLE_QUEEN_SQUARES 
 static constexpr std::array<int32_t, 2> KING_ROW = {{0, 7}};
 static constexpr std::array<BitBoard, 2> CASTLE_KING_DEST = {{bitboard_from_squares<G1>(), bitboard_from_squares<G8>()}};
 static constexpr std::array<BitBoard, 2> CASTLE_QUEEN_DEST = {{bitboard_from_squares<C1>(), bitboard_from_squares<C8>()}};
+
+consteval std::array<std::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> generate_en_passant_conversion_table() {
+    std::array<std::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> result{};
+    for (int32_t i = 1; i <= SQUARE_COUNT; ++i) {
+        // These are the index of the squares where the en passant can be applied for white pieces and black to capture
+        if (i >= 17 && i <= 23) {
+            result[PIECE_WHITE][i] = bitboard_from_squares(i - 1);
+        }
+    }
+    for (int32_t i = 1; i <= SQUARE_COUNT; ++i) {
+        // These are the index of the squares where the en passant can be applied for black pieces and white to capture
+        if (i >= 41 && i <= 48) {
+            result[PIECE_BLACK][i] = bitboard_from_squares(i - 1);
+        }
+    }
+    return result;
+}
+static constexpr std::array<std::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> EN_PASSANT_CONVERSION_TABLE = generate_en_passant_conversion_table();
+
 struct AvailableMoves {
     BitBoard bits;
     int32_t origin_index;
@@ -128,7 +148,7 @@ struct AvailableMoves {
     bool get(const int32_t row, const int32_t col) const { return bitboard_get(bits, row, col); }
     bool get(const int32_t index) const { return get(index / 8, index % 8); }
     void reset() { bits = static_cast<BitBoard>(0); }
-    int32_t move_count() const { return bitboard_count(bits); }
+    int64_t move_count() const { return bitboard_count(bits); }
 };
 
 gtr::large_string print_bitboard(BitBoard board);
@@ -187,21 +207,24 @@ struct MagicBoards {
         }
     }
 
-    template <PieceType T> BitBoard slider_attacks(BitBoard occ, BitBoard pieces_bb) const noexcept {
+    template<PieceType T>
+    BitBoard slider_attacks(const BitBoard occ, BitBoard bb) const noexcept {
         BitBoard attacks = 0;
-        while (pieces_bb) {
-            BitBoard lsb = pieces_bb & -pieces_bb;
-            auto sq = static_cast<SquareIndex>(bitboard_index(lsb));
-            attacks |= slider_attacks<T>(occ, sq);
-            pieces_bb ^= lsb;
+        while (bb) {
+            unsigned idx = std::countr_zero(bb);
+            const BitBoard lsb = BitBoard{1} << idx;
+            attacks |= slider_attacks<T>(occ, static_cast<SquareIndex>(idx));
+            bb ^= lsb;
         }
         return attacks;
     }
 };
 
-extern MagicBoards MAGIC_BOARD;
+MagicBoards init_magic_boards();
 
-void init_magic_boards(MagicBoards &mb);
+extern const MagicBoards MAGIC_BOARD;
+
+
 
 constexpr BitBoard FileA = 0x0101010101010101ULL;
 constexpr BitBoard FileB = 0x0202020202020202ULL;

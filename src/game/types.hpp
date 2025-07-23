@@ -82,4 +82,5 @@ constexpr bool squares_same_main_diagonal(const SquareIndex a, const SquareIndex
 
 constexpr bool squares_same_anti_diagonal(const SquareIndex a, const SquareIndex b) noexcept { return square_file(a) + square_rank(a) == square_file(b) + square_rank(b); }
 
+
 } // namespace game
