@@ -15,14 +15,11 @@ struct Game {
     Board board{};
     Player white_player{};
     Player black_player{};
-    Color turn{PIECE_WHITE};
     GameStatus status{GameStatus::WHITE_TURN};
     GameWinner winner{GameWinner::PLAYING};
     uint64_t move_count{0};
     history<AlgebraicMove> move_list{};
 
-    
-    // Methods
     Game();
 
     template <typename T> void set_player(const Color c, T player) {
@@ -34,10 +31,12 @@ struct Game {
             player_init(black_player, PIECE_BLACK);
         }
     }
+
     bool move(const int32_t from_row, const int32_t from_col, const int32_t to_row, const int32_t to_col, const PromotionPieceType promotion_type = PROMOTION_QUEEN) {
         return move(analyzer_get_move_from_simple(
             &board, SimpleMove{static_cast<uint8_t>(from_row), static_cast<uint8_t>(from_col), static_cast<uint8_t>(to_row), static_cast<uint8_t>(to_col)}, promotion_type));
     }
+    
     bool random_move();
     bool move(const Move &move);
     bool undo();

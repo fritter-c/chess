@@ -2,11 +2,11 @@
 #include <array>
 #include <cstdint>
 #include <iostream>
+#include "bitboard.hpp"
 #include "board.hpp"
 #include "move.hpp"
-#include "bitboard.hpp"
 namespace game {
-const MagicBoards MAGIC_BOARD = init_magic_boards();
+const MagicBoards MAGIC_BOARD = detail::init_magic_boards();
 static bool analyzer_is_pawn_attacking(const Board *board, const SquareIndex index, const Color attacker) {
     return MAGIC_BOARD.pawn_attackers[attacker][index] & board->pieces_by_type[PAWN] & board->pieces_by_color[attacker];
 }
@@ -105,22 +105,21 @@ AvailableMoves analyzer_get_pseudo_legal_moves_for_piece(const Board *board, con
     using enum PieceType;
     AvailableMoves moves{};
     moves.origin_index = Board::get_index(row, col);
-    if (const auto piece = board->pieces[Board::get_index(row, col)]; PIECE_TYPE(piece) != EMPTY) {
-        const auto enemy_color = chess_piece_other_color(PIECE_COLOR(piece));
-        switch (PIECE_TYPE(piece)) {
-        case PAWN  : analyzer_get_pawn_moves(board, piece, row, col, enemy_color, moves); break;
-        case KNIGHT: analyzer_get_knight_moves(board, piece, row, col, enemy_color, moves); break;
-        case BISHOP: analyzer_get_bishop_moves(board, piece, row, col, enemy_color, moves); break;
-        case ROOK  : analyzer_get_rook_moves(board, piece, row, col, enemy_color, moves); break;
-        case QUEEN : analyzer_get_queen_moves(board, piece, row, col, enemy_color, moves); break;
-        case KING  : analyzer_get_king_moves(board, piece, row, col, enemy_color, moves); break;
-        default    : break;
-        }
+    const auto piece = board->pieces[Board::get_index(row, col)];
+    const auto enemy_color = chess_piece_other_color(PIECE_COLOR(piece));
+    switch (PIECE_TYPE(piece)) {
+    case PAWN  : analyzer_get_pawn_moves(board, piece, row, col, enemy_color, moves); break;
+    case KNIGHT: analyzer_get_knight_moves(board, piece, row, col, enemy_color, moves); break;
+    case BISHOP: analyzer_get_bishop_moves(board, piece, row, col, enemy_color, moves); break;
+    case ROOK  : analyzer_get_rook_moves(board, piece, row, col, enemy_color, moves); break;
+    case QUEEN : analyzer_get_queen_moves(board, piece, row, col, enemy_color, moves); break;
+    case KING  : analyzer_get_king_moves(board, piece, row, col, enemy_color, moves); break;
+    default    : break;
     }
     return moves;
 }
 
-AvailableMoves analyzer_filter_legal_moves(Board *board,const AvailableMoves moves) {
+AvailableMoves analyzer_filter_legal_moves(Board *board, const AvailableMoves moves) {
     AvailableMoves legal{};
     SimpleMove move{};
     move.from_row = Board::get_row(moves.origin_index);
@@ -147,15 +146,7 @@ bool analyzer_is_color_in_checkmate(Board *board, Color color) {
     if (!analyzer_is_color_in_check(board, color)) {
         return false;
     }
-    for (uint8_t i = 0; i < SQUARE_COUNT; ++i) {
-        if (PIECE_COLOR(board->pieces[i]) == color) {
-            const auto [bits, origin] = analyzer_get_legal_moves_for_piece(board, Board::get_row(i), Board::get_col(i));
-            if (bits != 0) {
-                return false;
-            }
-        }
-    }
-    return true;
+    return analyzer_get_legal_move_count(board, color) == 0;
 }
 
 Move analyzer_get_move_from_simple(Board *board, const SimpleMove &move, PromotionPieceType promotion_type) {
@@ -178,12 +169,10 @@ Move analyzer_get_move_from_simple(Board *board, const SimpleMove &move, Promoti
 
 int64_t analyzer_get_legal_move_count(Board *board, Color color) {
     int64_t count = 0;
-    for (uint8_t i = 0; i < SQUARE_COUNT; ++i) {
-        if (PIECE_COLOR(board->pieces[i]) == color) {
-            const auto moves = analyzer_get_pseudo_legal_moves_for_piece(board, Board::get_row(i), Board::get_col(i));
-            const auto legal_moves = analyzer_filter_legal_moves(board, moves);
-            count += legal_moves.move_count();
-        }
+    for (auto it = BitBoardIterator::begin(board->pieces_by_color[color]); it != BitBoardIterator::end(); ++it) {
+        const auto moves = analyzer_get_pseudo_legal_moves_for_piece(board, *it);
+        const auto legal_moves = analyzer_filter_legal_moves(board, moves);
+        count += legal_moves.move_count();
     }
     return count;
 }
@@ -264,10 +253,6 @@ bool analyzer_move_puts_to_checkmate(Board *board, const Move &move) {
 }
 
 bool analyzer_is_move_legal(Board *board, const Move &move) {
-    if (move.get_origin() == move.get_destination()) {
-        return false; // No move
-    }
-
     const auto friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
 
     if (move.is_castle()) {

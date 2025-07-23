@@ -15,7 +15,7 @@ Move DrunkMan::get_move(Board &b) {
     int32_t piece_index = 0;
     for (int32_t i = 0; i < 64; i++) {
         if (PIECE_COLOR(b[i]) == player.color) {
-            auto moves = analyzer_get_pseudo_legal_moves_for_piece(&b, i);
+            auto moves = analyzer_get_legal_moves_for_piece(&b, i);
             if (moves.move_count()) {
                 moves_per_piece[piece_index] = moves;
                 piece_index++;

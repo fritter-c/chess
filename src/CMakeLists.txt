@@ -2,6 +2,7 @@ add_subdirectory(third)
 add_subdirectory(renderer)
 add_subdirectory(game)
 add_executable(chess main.cpp)
+add_dependencies(chess copy_resources)
 if (MSVC)
     target_compile_options(chess PRIVATE $<$<CONFIG:RelWithDebInfo>:/O2>
             $<$<CONFIG:Release>:/O2>

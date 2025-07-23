@@ -4,25 +4,16 @@
 #include "unordered_map"
 namespace game {
 
-static constexpr std::array<std::pair<int, int>, 4> rook_dirs{{
-    {+1, 0},
-    {-1, 0},
-    {0, +1},
-    {0, -1},
-}};
-
-static constexpr std::array<std::pair<int, int>, 4> bishop_dirs{{
-    {+1, +1},
-    {+1, -1},
-    {-1, +1},
-    {-1, -1},
-}};
-
-constexpr BitBoard sliding_attacks_rook(const SquareIndex sq, const BitBoard occ) noexcept {
+static BitBoard sliding_attacks_rook(const SquareIndex sq, const BitBoard occ) noexcept {
     BitBoard attacks = 0;
     const int32_t r = std::to_underlying(sq) / 8;
     const int32_t c = std::to_underlying(sq) % 8;
-
+    static constexpr std::array rook_dirs{
+        std::pair{+1, 0},
+        std::pair{-1, 0},
+        std::pair{0, +1},
+        std::pair{0, -1},
+    };
     for (auto [dr, dc] : rook_dirs) {
         int32_t rr = r + dr;
         int32_t cc = c + dc;
@@ -39,10 +30,17 @@ constexpr BitBoard sliding_attacks_rook(const SquareIndex sq, const BitBoard occ
     return attacks;
 }
 
-constexpr BitBoard sliding_attacks_bishop(const SquareIndex sq, const BitBoard occ) noexcept {
+static BitBoard sliding_attacks_bishop(const SquareIndex sq, const BitBoard occ) noexcept {
     BitBoard attacks = 0;
     const int32_t r = std::to_underlying(sq) / 8;
     const int32_t c = std::to_underlying(sq) % 8;
+
+    static constexpr std::array bishop_dirs{
+        std::pair{+1, +1},
+        std::pair{+1, -1},
+        std::pair{-1, +1},
+        std::pair{-1, -1},
+    };
 
     for (auto [dr, dc] : bishop_dirs) {
         int32_t rr = r + dr;
@@ -74,7 +72,7 @@ template <typename Offsets> constexpr BitBoard make_attack_mask(const int32_t sq
     return bb;
 }
 
-void fill_sliders_magic(MagicBoards &mb) {
+static void fill_sliders_magic(MagicBoards &mb) {
     static constexpr std::array MAGIC_SEEDS = {728, 10316, 55013, 32803, 12281, 15100, 16645, 255};
     std::vector<BitBoard> rook_attack_table(0x19000, 0);
     std::vector<BitBoard> bishop_attack_table(0x1480, 0);
@@ -225,7 +223,7 @@ void fill_sliders_magic(MagicBoards &mb) {
         }
     }
 }
-MagicBoards init_magic_boards() {
+MagicBoards detail::init_magic_boards() {
     // pawn attacks
     MagicBoards mb{};
     for (int32_t color = 0; color < COLOR_COUNT; ++color) {

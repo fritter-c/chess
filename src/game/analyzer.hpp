@@ -5,9 +5,9 @@
 #include "bitboard.hpp"
 
 namespace game {
-AvailableMoves analyzer_get_pseudo_legal_moves_for_piece(Board *board, int32_t row, int32_t col);
+AvailableMoves analyzer_get_pseudo_legal_moves_for_piece(const Board *board, int32_t row, int32_t col);
 
-inline AvailableMoves analyzer_get_pseudo_legal_moves_for_piece(Board *board, const int32_t index) {
+inline AvailableMoves analyzer_get_pseudo_legal_moves_for_piece(const Board *board, const int32_t index) {
     return analyzer_get_pseudo_legal_moves_for_piece(board, Board::get_row(index), Board::get_col(index));
 }
 
@@ -15,6 +15,10 @@ AvailableMoves analyzer_filter_legal_moves(Board *board, AvailableMoves moves);
 
 inline AvailableMoves analyzer_get_legal_moves_for_piece(Board *board, int32_t row, int32_t col) {
     return analyzer_filter_legal_moves(board, analyzer_get_pseudo_legal_moves_for_piece(board, row, col));
+}
+
+inline AvailableMoves analyzer_get_legal_moves_for_piece(Board *board, int32_t index) {
+    return analyzer_get_legal_moves_for_piece(board, Board::get_row(index), Board::get_col(index));
 }
 
 bool analyzer_is_cell_under_attack_by_color(const Board *board, int32_t row, int32_t col, Color attacker);

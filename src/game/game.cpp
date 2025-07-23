@@ -21,9 +21,9 @@ static void game_update_status(Game *g) {
         g->status = BLACK_STALEMATE;
     } else if (analyzer_is_insufficient_material(&g->board)) {
         g->status = INSUFFICIENT_MATERIAL;
-    } else if (g->turn == PIECE_WHITE) {
+    } else if (g->board.side_to_move == PIECE_WHITE) {
         g->status = WHITE_TURN;
-    } else if (g->turn == PIECE_BLACK) {
+    } else if (g->board.side_to_move  == PIECE_BLACK) {
         g->status = BLACK_TURN;
     } else {
         g->status = INVALID;
@@ -40,10 +40,9 @@ bool Game::move(const Move &move) {
         return false;
     }
     AvailableMoves moves = analyzer_get_legal_moves_for_piece(&board, move.from_row(), move.from_col());
-    if (board.get_color(move.from_row(), move.from_col()) == turn && moves.get(move.to_row(), move.to_col())) {
+    if (board.get_color(move.from_row(), move.from_col()) == board.side_to_move && moves.get(move.to_row(), move.to_col())) {
         AlgebraicMove algebraic_move;
         board.move(move, algebraic_move);
-        turn = ~turn;
         game_update_status(this);
         push_move(algebraic_move);
         ++move_count;
@@ -54,7 +53,6 @@ bool Game::move(const Move &move) {
 
 bool Game::redo() {
     if (board.redo()) {
-        turn = ~turn;
         game_update_status(this);
         redo_move();
         ++move_count;
@@ -65,7 +63,6 @@ bool Game::redo() {
 
 bool Game::undo() {
     if (board.undo()) {
-        turn = ~turn;
         game_update_status(this);
         undo_move();
         --move_count;
@@ -75,7 +72,7 @@ bool Game::undo() {
 }
 
 bool Game::random_move() {
-    DrunkMan player{PlayerStatus{turn}};
+    DrunkMan player{PlayerStatus{board.side_to_move}};
     return move(player_get_move(player, board));
 }
 
@@ -94,8 +91,8 @@ void Game::tick() {
     using enum GameWinner;
     if (game_is_playable(this)) {
         winner = PLAYING;
-        if (player_is_ai(game_get_player(this, turn))) {
-            move(player_get_move(game_get_player(this, turn), board));
+        if (player_is_ai(game_get_player(this, board.side_to_move))) {
+            move(player_get_move(game_get_player(this, board.side_to_move), board));
         }
     } else {
         if (status == WHITE_CHECKMATE) {
@@ -112,7 +109,6 @@ void Game::reset() {
     board = Board{};
     board.init();
     board.populate();
-    turn = PIECE_WHITE;
     status = GameStatus::WHITE_TURN;
     winner = GameWinner::PLAYING;
     move_count = 0;

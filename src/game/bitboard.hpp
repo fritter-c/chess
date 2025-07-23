@@ -52,21 +52,19 @@ template <int32_t = 0, typename... Squares> constexpr BitBoard bitboard_from_squ
 
 inline uint8_t bitboard_extract_rank(const BitBoard bb, const int32_t r) noexcept { return static_cast<uint8_t>(bb >> (r * 8) & RANK_MASK); }
 
-inline uint8_t bitboard_extract_file(const BitBoard bb, const int32_t f) noexcept { return static_cast<uint8_t>((bb >> f) & 0x0101010101010101ULL); }
-
 inline int32_t bitboard_index(const BitBoard bb) noexcept {
     Assert(bb != 0 && std::has_single_bit(bb), "bitboard_index: expected exactly one bit set");
     return std::countr_zero(bb);
 }
 
-inline BitBoard bitboard_set_bit_if_set(BitBoard bb,const SquareIndex sq,const SquareIndex dest) noexcept {
+inline BitBoard bitboard_set_bit_if_set(BitBoard bb, const SquareIndex sq, const SquareIndex dest) noexcept {
     Assert(sq < SQUARE_COUNT, "bitboard_set_bit_if_set: square index out of bounds");
     bb |= ((bb >> sq) << 1ULL) << dest;
     return bb;
 }
 
 struct BitBoardIterator {
-    BitBoard bits;
+    BitBoard bits{0};
     SquareIndex index{A1};
 
     explicit BitBoardIterator(BitBoard b) : bits(b) {
@@ -122,6 +120,7 @@ static constexpr std::array<int32_t, 2> KING_ROW = {{0, 7}};
 static constexpr std::array<BitBoard, 2> CASTLE_KING_DEST = {{bitboard_from_squares<G1>(), bitboard_from_squares<G8>()}};
 static constexpr std::array<BitBoard, 2> CASTLE_QUEEN_DEST = {{bitboard_from_squares<C1>(), bitboard_from_squares<C8>()}};
 
+namespace detail {
 consteval std::array<std::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> generate_en_passant_conversion_table() {
     std::array<std::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> result{};
     for (int32_t i = 1; i <= SQUARE_COUNT; ++i) {
@@ -138,7 +137,9 @@ consteval std::array<std::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> genera
     }
     return result;
 }
-static constexpr std::array<std::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> EN_PASSANT_CONVERSION_TABLE = generate_en_passant_conversion_table();
+} // namespace detail
+constexpr auto EN_PASSANT_INVALID_INDEX{-1};
+static constexpr std::array<std::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> EN_PASSANT_CONVERSION_TABLE = detail::generate_en_passant_conversion_table();
 
 struct AvailableMoves {
     BitBoard bits;
@@ -162,7 +163,7 @@ constexpr std::byte CASTLE_BLACK_ALL{CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENS
 constexpr std::byte CASTLE_WHITE_ALL{CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE};
 constexpr std::byte CASTLE_RIGHTS_ALL{CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE};
 constexpr int8_t CASTLE_RIGHTS_COUNT{16};
-struct MagicBoards {
+struct alignas(64) MagicBoards {
     std::array<std::array<BitBoard, SQUARE_COUNT>, COLOR_COUNT> pawn_attacks;
     std::array<std::array<BitBoard, SQUARE_COUNT>, COLOR_COUNT> pawn_moves;
     std::array<BitBoard, SQUARE_COUNT> knight_attacks;
@@ -207,8 +208,7 @@ struct MagicBoards {
         }
     }
 
-    template<PieceType T>
-    BitBoard slider_attacks(const BitBoard occ, BitBoard bb) const noexcept {
+    template <PieceType T> BitBoard slider_attacks(const BitBoard occ, BitBoard bb) const noexcept {
         BitBoard attacks = 0;
         while (bb) {
             unsigned idx = std::countr_zero(bb);
@@ -219,12 +219,10 @@ struct MagicBoards {
         return attacks;
     }
 };
-
+namespace detail {
 MagicBoards init_magic_boards();
-
+} // namespace detail
 extern const MagicBoards MAGIC_BOARD;
-
-
 
 constexpr BitBoard FileA = 0x0101010101010101ULL;
 constexpr BitBoard FileB = 0x0202020202020202ULL;

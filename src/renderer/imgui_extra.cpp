@@ -58,6 +58,21 @@ GLuint LoadTexture(const std::filesystem::path &filename) {
     return INVALID_TEXTURE_ID;
 }
 
+GLFWimage LoadImage(const std::filesystem::path &filename){
+    GLFWimage image;
+    image.pixels = stbi_load(filename.string().c_str(), &image.width, &image.height, nullptr, 4);
+    return image;
+}
+
+void FreeImage(GLFWimage &image){
+    if (image.pixels) {
+        stbi_image_free(image.pixels);
+        image.pixels = nullptr;
+    }
+    image.width = 0;
+    image.height = 0;
+}
+
 void LoadFont(const std::filesystem::path &filename, float size) {
     if (auto &io = GetIO(); io.Fonts->AddFontFromFileTTF(filename.string().c_str(), size) == nullptr) {
         fprintf(stderr, "Failed to load font: %s\n", filename.string().c_str());

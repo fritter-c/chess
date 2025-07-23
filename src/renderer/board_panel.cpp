@@ -54,7 +54,7 @@ static void write_move_with_icon(const game::AlgebraicMove &move) {
 }
 
 BoardPanel::BoardPanel() {
-#if 0
+#if 1
     chess_game.set_player(game::PIECE_WHITE, game::DrunkMan{});
     chess_game.set_player(game::PIECE_BLACK, game::DrunkMan{});
 #endif
@@ -170,7 +170,7 @@ void BoardPanel::render() {
         }
         if (chess_board.dragging_piece_index >= 0) {
             const game::Piece dragging = chess_game.board[chess_board.dragging_piece_index];
-            ImGui::Text("Dragging %s (%d)", game::piece_to_string(dragging), chess_board.available_squares_for_dragging.move_count());
+            ImGui::Text("Dragging %s (%d)", game::piece_to_string(dragging), static_cast<int32_t>(chess_board.available_squares_for_dragging.move_count()));
         } else {
             ImGui::Text("Dragging None");
         }

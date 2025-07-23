@@ -30,8 +30,8 @@ void Board::init() {
     state_history.push({});
     current_state = state_history.current();
     current_state->castle_rights = CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE;
-    current_state->en_passant_index = -1;
     current_state->castle_rights_bit = bitboard_from_squares<G1, G8, C1, C8>();
+    current_state->en_passant_index = EN_PASSANT_INVALID_INDEX;
 }
 
 static bool board_can_move_basic(const Board *board, const uint8_t from_index, const uint8_t to_index) {
@@ -77,12 +77,13 @@ static void board_undo_castle(Board *board, const Move move) {
 }
 
 static void update_rights(BoardState &state, Piece piece, const int32_t piece_row, const int32_t piece_col) {
+    bitboard_from_squares<G1, G8, C1, C8>();
     static constexpr std::array all_rights{~CASTLE_WHITE_ALL, ~CASTLE_BLACK_ALL};
-    static constexpr std::array all_rights_bit{~bitboard_from_squares<G1, C1>(), ~bitboard_from_squares<G8, C8>()};
+    static constexpr std::array all_rights_bit{bitboard_from_squares<G8, C8>(), bitboard_from_squares<G1, C1>()};
     static constexpr std::array side_rights{std::array{~CASTLE_WHITE_KINGSIDE, ~CASTLE_BLACK_KINGSIDE}, std::array{~CASTLE_WHITE_QUEENSIDE, ~CASTLE_BLACK_QUEENSIDE}};
-    static constexpr std::array side_rights_bit{
-        std::array{~bitboard_from_squares<G1>(), ~bitboard_from_squares<C1>()}, // White
-        std::array{~bitboard_from_squares<G8>(), ~bitboard_from_squares<C8>()}  // Black
+    static constexpr std::array side_rights_bit{ // And & with this to remove the rights
+        std::array{bitboard_from_squares<G8, C1, C8>(), bitboard_from_squares<G1, G8, C8>()}, // White
+        std::array{bitboard_from_squares<G1, C1, C8>(), bitboard_from_squares<G1, G8, C1>()}  // Black
     };
 
     switch (PIECE_TYPE(piece)) {
@@ -102,7 +103,7 @@ static void update_rights(BoardState &state, Piece piece, const int32_t piece_ro
 
 static void board_do_move(Board *board, const Move move, BoardState &state) {
     Piece const &from_piece = board->pieces[move.get_origin()];
-    state.en_passant_index = -1; // Reset en passant index
+    state.en_passant_index = EN_PASSANT_INVALID_INDEX; // Reset en passant index
     state.moved_piece = from_piece;
 
     if (PIECE_TYPE(from_piece) == PAWN && utils::abs(move.from_row() - move.to_row()) == 2) {
@@ -128,8 +129,6 @@ static void board_do_move(Board *board, const Move move, BoardState &state) {
 }
 
 static void apply_move(Board &board, const Move move, BoardState &state) {
-    Assert(board_can_move_basic(&board, move.get_origin(), move.get_destination()), "Invalid move");
-
     if (move.get_special() == Move::MOVE_CASTLE) {
         board_do_castle(&board, move);
     } else if (move.get_special() == Move::MOVE_PROMOTION) {
@@ -148,16 +147,20 @@ static void apply_move(Board &board, const Move move, BoardState &state) {
 }
 
 void Board::move_stateless(const Move m, BoardState &state) {
+    Assert(board_can_move_basic(this, m.get_origin(), m.get_destination()), "Invalid move");
     state.last_move = m;
     apply_move(*this, m, state);
+    side_to_move = ~side_to_move; // Switch sides
 }
 
 void Board::move(const Move m) {
     Assert(board_can_move_basic(this, m.get_origin(), m.get_destination()), "Invalid move");
-    state_history.push(*current_state);
+    BoardState current_state_copy = *current_state; 
+    state_history.push(current_state_copy);
     current_state = state_history.current();
     current_state->last_move = m;
     apply_move(*this, m, *current_state);
+    side_to_move = ~side_to_move; // Switch sides
 }
 
 void Board::move(const Move m, AlgebraicMove &out_alg) {
@@ -174,10 +177,10 @@ bool Board::redo() {
     }
 
     const Move &move = state_history.data[state_history.read_index + 1].last_move;
-
     Assert(board_can_move_basic(this, move.get_origin(), move.get_destination()), "Invalid move");
     BoardState dummy{};
     apply_move(*this, move, dummy);
+    side_to_move = ~side_to_move; // Switch sides
     if (state_history.redo()) {
         current_state = state_history.current();
         return true;
@@ -198,6 +201,7 @@ static bool do_undo(Board &board, const Move &move, const BoardState &state) {
                 board.put_piece(state.captured_piece, move.get_destination_index());
             }
         }
+        board.side_to_move = ~board.side_to_move; // Switch sides
         return true;
     }
     return false;
@@ -208,6 +212,7 @@ bool Board::undo() {
     if (do_undo(*this, move, *current_state)) {
         state_history.undo();
         current_state = state_history.current();
+        side_to_move = ~side_to_move; // Switch sides
         return true;
     }
     return false;

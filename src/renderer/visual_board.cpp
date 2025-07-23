@@ -16,28 +16,27 @@ struct BoardResources {
     static inline std::array<GLuint, 12> g_chess_pieces_textures{ImGui::INVALID_TEXTURE_ID};
 };
 
-bool load_board_resources(const std::filesystem::path &res_path) {
+bool load_board_resources() {
     if (ma_engine_init(nullptr, &BoardResources::g_ma_engine) != MA_SUCCESS) {
         return false;
     }
 
-    const auto move = res_path / "move.mp3";
+    const auto move = "move.mp3";
     // Need to convert first to string because windows uses wide char
-    if (ma_sound_init_from_file(&BoardResources::g_ma_engine, move.string().c_str(), MA_SOUND_FLAG_DECODE, nullptr, nullptr, &BoardResources::g_ma_move_sound) != MA_SUCCESS) {
+    if (ma_sound_init_from_file(&BoardResources::g_ma_engine, move, MA_SOUND_FLAG_DECODE, nullptr, nullptr, &BoardResources::g_ma_move_sound) != MA_SUCCESS) {
         return false;
     }
-    const auto check = res_path / "check.mp3";
-    if (ma_sound_init_from_file(&BoardResources::g_ma_engine, check.string().c_str(), MA_SOUND_FLAG_DECODE, nullptr, nullptr, &BoardResources::g_ma_check_sound) != MA_SUCCESS) {
+    const auto check = "check.mp3";
+    if (ma_sound_init_from_file(&BoardResources::g_ma_engine, check, MA_SOUND_FLAG_DECODE, nullptr, nullptr, &BoardResources::g_ma_check_sound) != MA_SUCCESS) {
         return false;
     }
 
-    static constexpr std::array<const char *, 12> piece_filenames = {"white-pawn.png",   "white-knight.png", "white-bishop.png", "white-rook.png",
-                                                                     "white-queen.png",  "white-king.png",   "black-pawn.png",   "black-knight.png",
-                                                                     "black-bishop.png", "black-rook.png",   "black-queen.png",  "black-king.png"};
+    static constexpr std::array piece_filenames = {"white-pawn.png", "white-knight.png", "white-bishop.png", "white-rook.png", "white-queen.png", "white-king.png",
+                                                   "black-pawn.png", "black-knight.png", "black-bishop.png", "black-rook.png", "black-queen.png", "black-king.png"};
 
     for (int32_t i = 0; i < 12; ++i) {
         auto &tex = BoardResources::g_chess_pieces_textures[i];
-        tex = ImGui::LoadTexture(res_path / piece_filenames[i]);
+        tex = ImGui::LoadTexture(piece_filenames[i]);
         if (tex == ImGui::INVALID_TEXTURE_ID) {
             return false;
         }
@@ -64,7 +63,7 @@ static void play_check_sound() {
 static ImVec2 apply_window_offset(const ImVec2 vec) { return vec + ImGui::GetWindowPos(); }
 
 GLuint get_piece_texture(const game::Piece piece) {
-    static constexpr std::array piece_to_img_pos{0, 0, 1, 2, 3, 4, 5, 0, 0, 6, 7, 8, 9, 10, 11};
+    static constexpr std::array piece_to_img_pos{0, 0, 1, 2, 3, 4, 5, 0, 0, 6, 7, 8, 9, 10, 11}; // direct conversion from game::Piece
     return BoardResources::g_chess_pieces_textures[piece_to_img_pos[std::to_underlying(piece)]];
 }
 
@@ -218,7 +217,7 @@ static void render_chess_board(game::Game *game, VisualBoard *board) {
             }
 
             if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && board->dragging_piece_index == -1 && game->board.pieces[index] != game::PIECE_NONE &&
-                game->board.get_color(index) == game->turn) {
+                game->board.get_color(index) == game->board.side_to_move) {
                 board->dragging_piece_index = index;
                 board->available_squares_for_dragging = game::analyzer_get_legal_moves_for_piece(&game->board, game::Board::get_row(index), game::Board::get_col(index));
                 ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
@@ -228,6 +227,8 @@ static void render_chess_board(game::Game *game, VisualBoard *board) {
 
                 board->dragging_piece_index = -1;
                 ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+            } else if (ImGui::IsItemClicked(ImGuiMouseButton_Middle)) {
+                board->destination_arrow_square = index;
             }
 
             ImGui::PopID();
@@ -245,6 +246,21 @@ static void render_dragging_piece(const game::Game *game, const VisualBoard *boa
     const game::Piece piece = game->board.pieces[board->dragging_piece_index];
     const GLuint texture_id = get_piece_texture(piece);
     ImGui::GetWindowDrawList()->AddImage(texture_id, piece_rect.topLeft, piece_rect.bottomRight);
+}
+
+static void render_arrows(const VisualBoard *board) {
+    if (board->origin_arrow_square < 0 || board->destination_arrow_square < 0) {
+        return;
+    }
+    const int32_t from_row = game::Board::get_row(board->origin_arrow_square);
+    const int32_t from_col = game::Board::get_col(board->origin_arrow_square);
+    const int32_t to_row = game::Board::get_row(board->destination_arrow_square);
+    const int32_t to_col = game::Board::get_col(board->destination_arrow_square);
+
+    const Rectangle from_rect = visual_board_get_rect_for_cell(board, from_row, from_col);
+    const Rectangle to_rect = visual_board_get_rect_for_cell(board, to_row, to_col);
+
+    ImGui::GetWindowDrawList()->AddLine(from_rect.Center(), to_rect.Center(), IM_COL32(255, 0, 0, 255), 2.0f);
 }
 
 void VisualBoard::render(game::Game *game, const float width, const float height) {
