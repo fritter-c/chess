@@ -1,16 +1,39 @@
 #include <iostream>
 #include "imgui.h"
+#include "imgui_extra.hpp"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "main_window.hpp"
 #include "visual_board.hpp"
-#include "imgui_extra.hpp"
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 
-constexpr auto VSYNC_HINT{1}; // 1 for vsync, 0 for no vsync
-
+constexpr auto VSYNC_HINT{0}; // 1 for vsync, 0 for no vsync
 namespace renderer {
+void toggle_fullscreen(GLFWwindow *window, const bool enable_fullscreen) {
+    static int32_t windowed_xpos = 0;
+    static int32_t windowed_ypos = 0;
+    static int32_t windowed_width = 0;
+    static int32_t windowed_height = 0;
+
+    if (enable_fullscreen) {
+        // Save current windowed mode position + size
+        glfwGetWindowPos(window, &windowed_xpos, &windowed_ypos);
+        glfwGetWindowSize(window, &windowed_width, &windowed_height);
+
+        // Switch to full‑screen on primary monitor
+        GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+        glfwSetWindowMonitor(window, monitor, 0, 0, // top‑left corner of the monitor
+                             mode->width, mode->height, mode->refreshRate);
+    } else {
+        // Restore windowed mode
+        glfwSetWindowMonitor(window, nullptr, windowed_xpos, windowed_ypos, windowed_width, windowed_height,
+                             0 // refreshRate ignored in windowed
+        );
+    }
+}
+
 enum FrameAction { FRAME_CONTINUE, FRAME_EXIT, FRAME_SLEEP };
 
 static void glfw_error_callback(const int32_t error, const char *description) {
@@ -103,16 +126,14 @@ int render() {
         return 1;
     }
 
-    GLFWimage main_icon = ImGui::LoadImage("logo.png");
+    GLFWimage main_icon = ImGui::LoadImage("logo.png"); // This leaks in the end
 
     glfwSetWindowIcon(window, 1, &main_icon);
-
     if (!load_board_resources()) {
         imgui_shutdown(window);
         std::cerr << "Failed to load resources." << std::endl;
         return 2;
     }
-
 
     MainWindow main_win;
     while (true) {
@@ -130,7 +151,6 @@ int render() {
     }
 
     glfwSetWindowIcon(window, 0, nullptr);
-    ImGui::FreeImage(main_icon);
     release_board_resources();
     imgui_shutdown(window);
     return 0;

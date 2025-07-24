@@ -54,7 +54,7 @@ static void write_move_with_icon(const game::AlgebraicMove &move) {
 }
 
 BoardPanel::BoardPanel() {
-#if 1
+#if 0
     chess_game.set_player(game::PIECE_WHITE, game::DrunkMan{});
     chess_game.set_player(game::PIECE_BLACK, game::DrunkMan{});
 #endif
@@ -142,6 +142,7 @@ static void render_debug_info(BoardPanel *panel) {
     }
     ImGui::End();
 }
+extern int toggle_fullscreen();
 void BoardPanel::render() {
     ImGui::SetNextWindowSize(ImVec2(1080, 1080), ImGuiCond_FirstUseEver);
 
