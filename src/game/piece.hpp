@@ -19,7 +19,7 @@ inline const char *color_to_string(const Color color) {
 
 constexpr Color operator~(const Color color) { return static_cast<Color>(color ^ PIECE_BLACK); }
 
-inline Color chess_piece_other_color(const Color color) { return ~color; }
+constexpr Color chess_piece_other_color(const Color color) { return ~color; }
 
 enum Piece : int8_t {
     PIECE_NONE,
@@ -62,7 +62,7 @@ inline const char *piece_to_string(const Piece p) {
 #define IS_BLACK(PIECE) PIECE_COLOR(PIECE) == game::PIECE_BLACK
 #define IS_PAWN(PIECE) PIECE_TYPE(PIECE) == game::PAWN
 
-inline char piece_to_string_short(Piece p) {
+inline char piece_to_string_font(Piece p) {
     static constexpr std::array piece_font_table = {std::array{'z', 'O', 'M', 'V', 'T', 'W', 'L'}, std::array{'z', 'P', 'N', 'B', 'R', 'Q', 'K'}};
     return piece_font_table[IS_BLACK(p)][PIECE_TYPE(p)];
 }

@@ -9,6 +9,9 @@ struct BoardPanel {
     bool debug_plain_string{false};
     int32_t selected_magic_board{0};
     int32_t selected_square{0};
+    game::AlgebraicMove move_to_apply;
+    game::MoveParserConversionError move_error{game::MoveParserConversionError::NONE};
+    gtr::char_string<128> fen_buffer;
     void render();
     BoardPanel();
 };

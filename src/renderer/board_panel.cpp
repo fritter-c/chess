@@ -1,4 +1,5 @@
 #include "board_panel.hpp"
+#include "../game/fen.hpp"
 #include "../game/player.hpp"
 
 namespace renderer {
@@ -176,7 +177,7 @@ void BoardPanel::render() {
             ImGui::Text("Dragging None");
         }
 
-        ImGui::Text("Move count %lu", chess_game.move_count);
+        ImGui::Text("Move count %lu", chess_game.board.move_count);
         ImGui::Text("Status %s (%s)", chess_game.get_status_string(), chess_game.get_winner_string());
 
         ImGui::EndChild();
@@ -201,17 +202,55 @@ void BoardPanel::render() {
         if (ImGui::Button(">>")) {
             chess_game.return_last_move();
         }
+
+        ImGui::SetNextItemWidth( 100.0f );
+        ImGui::InputText("Algebraic", move_to_apply.c_str(), 32);
+        ImGui::SameLine();
+        if (ImGui::Button("Apply")) {
+            game::Move m;
+            move_error = game::algebraic_to_move(chess_game.board.side_to_move, chess_game.board, move_to_apply, m);
+            if (move_error != game::MoveParserConversionError::NONE) {
+                ImGui::OpenPopup("Move Error");
+            } else {
+                std::ignore = chess_game.move(m);
+            }
+        }
+        ImGui::SetNextItemWidth( 500.0f );
+        ImGui::InputText("FEN", fen_buffer.c_str(), fen_buffer.capacity());
+        if (!fen_buffer.empty() && ImGui::BeginItemTooltip()) {
+            ImGui::TextUnformatted(fen_buffer.c_str());
+            ImGui::EndTooltip();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Set")) {
+            chess_game.set_position(fen_buffer.c_str());
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Reset")) {
+            fen_buffer = game::Fen::FEN_START;
+            chess_game.set_position(game::Fen::FEN_START);
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Get")) {
+            fen_buffer = chess_game.board.get_fen().c_str();
+        }
+
         if (ImGui::IsKeyPressed(ImGuiKey_Tab, false)) {
             debug_chess_board = !debug_chess_board;
         }
 
+        if (ImGui::BeginPopup("Move Error")) {
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%s", game::conversion_error_to_string(move_error).c_str());
+            ImGui::EndPopup();
+        }
         if (debug_chess_board) {
             render_debug_info(this);
         }
 
         ImGui::EndChild();
 
-        ImGui::BeginChild("Move List", ImVec2(0, 0));
+        ImGui::BeginChild("Move List");
         static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
                                        ImGuiTableFlags_SizingFixedFit;
         constexpr int32_t column_count = 3;
@@ -237,6 +276,7 @@ void BoardPanel::render() {
             ImGui::EndTable();
         }
         ImGui::EndChild();
+
     }
     ImGui::End();
 }

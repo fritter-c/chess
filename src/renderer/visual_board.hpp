@@ -1,7 +1,5 @@
 #pragma once
-#include <filesystem>
 #include "../game/board.hpp"
-#include "../third/miniaudio.h"
 #include "imgui.h"
 #include "imgui_extra.hpp"
 #include "vector.hpp"

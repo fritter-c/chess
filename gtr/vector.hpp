@@ -1,10 +1,10 @@
 ﻿#pragma once
 #ifndef VECTOR_HPP
 #define VECTOR_HPP
+#include <cstring>
 #include <memory>
 #include "allocator.hpp"
 #include "assert.hpp"
-#include <cstring>
 #include "container_base.hpp"
 
 namespace gtr {
@@ -25,6 +25,24 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
 
     const Allocator &allocator() const { return container_base<Allocator>::allocator(); }
     Allocator &allocator() { return container_base<Allocator>::allocator(); }
+
+    /**
+     * @brief Swaps the contents of two vectors.
+     *
+     * This function swaps the contents of two vectors, including their data pointers,
+     * end pointers, and capacity pointers. It uses the `swap` function from the
+     * standard library to perform the swap operation efficiently.
+     *
+     * @param a The first vector to swap.
+     * @param b The second vector to swap.
+     */
+    friend void swap(vector &a, vector &b) noexcept {
+        using std::swap;
+        swap(static_cast<Allocator &>(a), static_cast<Allocator &>(b));
+        swap(a.data, b.data);
+        swap(a.data_end, b.data_end);
+        swap(a.capacity_end, b.capacity_end);
+    }
 
     /**
      * @brief Returns the current number of elements in the vector.
@@ -56,40 +74,17 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
     [[nodiscard]] size_type size_in_bytes() const { return size() * sizeof(T); }
 
     /**
-     * @brief Destroys all elements in the container.
-     *
-     * This function iterates over all elements in the container and explicitly
-     * calls their destructor. It ensures that all resources held by the elements
-     * are properly released. This function should be used with caution as it
-     * manually invokes destructors, which is generally handled automatically
-     * by the container's destructor.
-     */
-    template <typename U = T>
-        requires(std::is_trivially_destructible_v<U>)
-    static void destroy_all() {
-        /** No-op for trivially destructible types}*/
-    }
-
-    // For non-trivially destructible types: call destructors.
-    template <typename U = T>
-        requires(!std::is_trivially_destructible_v<U>)
-    void destroy_all() {
-        if (data) {
-            U *ptr = data;
-            for (U *it = ptr; it != data_end; ++it) { it->~U(); }
-        }
-    }
-
-    /**
      * @brief Frees all allocated memory for the vector.
      *
      * This function destroys all elements in the vector and then frees the memory
      * allocated for the vector's data.
      */
     void free_all() {
-        destroy_all();
+        std::destroy(data, data_end);
         this->deallocate(data, capacity());
         data = nullptr;
+        data_end = nullptr;
+        capacity_end = nullptr;
     }
 
     /**
@@ -164,93 +159,32 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
     vector(const vector &other)
         : container_base<Allocator>(std::allocator_traits<Allocator>::select_on_container_copy_construction(other.allocator())), data(this->allocate(other.capacity())),
           data_end(data + other.size()), capacity_end(data + other.capacity()) {
-        if constexpr (std::is_trivially_copyable_v<T>) {
-            std::memcpy(data, other.data, other.size() * sizeof(T));
-        } else {
-            for (size_type i = 0; i < other.size(); ++i) new (data + i) T(other.data[i]);
-        }
+        std::uninitialized_copy(other.data, other.data_end, data);
     }
 
-    vector(vector &&other) noexcept(std::allocator_traits<Allocator>::is_always_equal::value || std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value)
-        : container_base<Allocator>((std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<Allocator>::is_always_equal::value)
+    vector(vector &&other) noexcept
+        : container_base<Allocator>(std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<Allocator>::is_always_equal::value
                                         ? std::move(other.allocator())
-                                        : Allocator{}),
-          data{other.data}, data_end{other.data_end}, capacity_end{other.capacity_end} {
-        if constexpr (!std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value && !std::allocator_traits<Allocator>::is_always_equal::value) {
-            T *dst = data;
-            for (T *it = other.data; it != other.data_end; ++it, ++dst) new (dst) T(std::move(*it));
-            other.destroy_all();
-        }
-        other.data = other.data_end = other.capacity_end = nullptr;
-    }
-
-    vector &operator=(const vector &other) {
-        if (this == &other)
-            return *this;
-
+                                        : Allocator{}) {
         using ATraits = std::allocator_traits<Allocator>;
-        using Base = container_base<Allocator>;
-
-        if constexpr (ATraits::propagate_on_container_copy_assignment::value) {
-            static_cast<Base &>(*this) = other;
-        }
-
-        if (other.size() > capacity()) {
-            free_all();
-            data = this->allocate(other.capacity());
-            capacity_end = data + other.capacity();
-        }
-
-        // 3) copy‐construct or memcpy elements
-        if constexpr (std::is_trivially_copyable_v<T>) {
-            std::memcpy(data, other.data, other.size() * sizeof(T));
-        } else {
-            // destroy any old elements
-            destroy_all();
-            // copy‐construct new ones
-            for (size_type i = 0; i < other.size(); ++i) new (data + i) T(other.data[i]);
-        }
-
-        data_end = data + other.size();
-        return *this;
-    }
-
-    vector &operator=(vector &&other) noexcept {
-        if (this == &other)
-            return *this;
-
-        using ATraits = std::allocator_traits<Allocator>;
-        using Base = container_base<Allocator>;
-
         if constexpr (ATraits::propagate_on_container_move_assignment::value || ATraits::is_always_equal::value) {
-            free_all();
-            // move‐assign the allocator
-            static_cast<Base &>(*this) = std::move(other);
-            // steal the buffer
             data = other.data;
             data_end = other.data_end;
             capacity_end = other.capacity_end;
-            // leave other empty
-            other.data = other.data_end = other.capacity_end = nullptr;
+            other.data = nullptr;
+            other.data_end = nullptr;
+            other.capacity_end = nullptr;
         } else {
-            // 2) deep‐move into our own storage
-            if (other.size() > capacity()) {
-                free_all();
-                data = allocate(other.capacity());
-                capacity_end = data + other.capacity();
-            }
-            // destroy any old elements
-            destroy_all();
-            // move‐construct new ones
-            T *dst = data;
-            for (T *src = other.data; src != other.data_end; ++src, ++dst) new (dst) T(std::move(*src));
-            data_end = data + (other.data_end - other.data);
-
-            // clear out the source
-            other.destroy_all();
-            other.data = other.data_end = other.capacity_end = nullptr;
+            data = this->allocate(other.capacity());
+            data_end = data + other.size();
+            capacity_end = data + other.capacity();
+            std::uninitialized_move(other.data, other.data_end, data);
         }
+    }
 
+    vector &operator=(vector other) noexcept(std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value ||
+                                             std::allocator_traits<Allocator>::is_always_equal::value) {
+        swap(*this, other);
         return *this;
     }
 

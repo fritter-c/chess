@@ -6,33 +6,8 @@
 #include "move.hpp"
 #include "piece.hpp"
 #include "types.hpp"
-#include "random.hpp"
+#include "fen.hpp"
 namespace game {
-
-struct Zobrist {
-    using Key = uint64_t;
-    Key ZOBRIST_PIECE[PIECE_COUNT_PLUS_ANY][COLOR_COUNT][SQUARE_COUNT];
-    Key ZOBRIST_CASTLE_RIGHTS[CASTLE_RIGHTS_COUNT];
-    Key ZOBRIST_EN_PASSANT[FILE_COUNT];
-    Key ZOBRIST_SIDE_TO_MOVE;
-};
-
-namespace detail {
-consteval Zobrist init_zobrist() {
-    Zobrist zb{};
-    RandomGenerator rng(0x123456789ABCDEF0ULL);
-    auto rnd = [&] { return rng(); };
-    for (int32_t pt = 0; pt < PIECE_COUNT_PLUS_ANY; pt++)
-        for (int32_t c = 0; c < COLOR_COUNT; c++)
-            for (int32_t sq = 0; sq < SQUARE_COUNT; sq++) zb.ZOBRIST_PIECE[pt][c][sq] = rnd();
-    for (int32_t m = 0; m < CASTLE_RIGHTS_COUNT; m++) zb.ZOBRIST_CASTLE_RIGHTS[m] = rnd();
-    for (int32_t f = 0; f < FILE_COUNT; f++) zb.ZOBRIST_EN_PASSANT[f] = rnd();
-    zb.ZOBRIST_SIDE_TO_MOVE = rnd();
-    return zb;
-}
-} // namespace detail
-
-constexpr Zobrist ZOBRIST = detail::init_zobrist();
 
 struct BoardState {
     std::byte castle_rights;
@@ -41,7 +16,6 @@ struct BoardState {
     Piece moved_piece;
     Move last_move;
     BitBoard castle_rights_bit;
-    Zobrist::Key position_hash;
 };
 
 struct Board {
@@ -51,6 +25,7 @@ struct Board {
     history<BoardState> state_history;
     BoardState *current_state{nullptr};
     Color side_to_move{PIECE_WHITE};
+    int32_t move_count{0};
 
     Board() { init(); }
 
@@ -143,5 +118,9 @@ struct Board {
     template <PieceType T, Color C> constexpr BitBoard get_piece_bitboard() const { return pieces_by_type[T] & pieces_by_color[C]; }
 
     constexpr BitBoard get_piece_bitboard(const PieceType t, const Color c) const { return pieces_by_type[t] & pieces_by_color[c]; }
+
+    void set_position(const Fen& fen);
+
+    Fen get_fen() const;
 };
 } // namespace game

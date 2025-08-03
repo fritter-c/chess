@@ -1,7 +1,7 @@
 #include "visual_board.hpp"
 #include "../game/analyzer.hpp"
 #include "../game/game.hpp"
-#include "board_panel.hpp"
+#include "../third/miniaudio.h"
 #include "imgui_extra.hpp"
 #include "imgui_internal.h"
 #include "primitives.hpp"
@@ -140,14 +140,13 @@ static void do_move(game::Game *game, const game::Move move) {
     }
 }
 
-static void visual_board_piece_move(VisualBoard *board, game::Game *game, const int32_t from_row, const int32_t from_col, const int32_t to_row, const int32_t to_col,
-                                    game::PromotionPieceType promotion_type = game::PROMOTION_QUEEN) {
+static void visual_board_piece_move(VisualBoard *board, game::Game *game, const int32_t from_row, const int32_t from_col, const int32_t to_row, const int32_t to_col) {
     if (game->board.pawn_is_being_promoted({from_row, from_col, to_row, to_col})) {
         board->promotion_move = {from_row, from_col, to_row, to_col};
         board->waiting_promotion = true;
         return;
     }
-    do_move(game, game::analyzer_get_move_from_simple(&game->board, {from_row, from_col, to_row, to_col}, promotion_type));
+    do_move(game, game::analyzer_get_move_from_simple(&game->board, {from_row, from_col, to_row, to_col}));
 }
 
 static void render_promotion_modal(game::Game *game, VisualBoard *board) {

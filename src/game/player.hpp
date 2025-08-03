@@ -1,7 +1,6 @@
 #pragma once
 #include <random>
 #include <variant>
-#include "board.hpp"
 #include "move.hpp"
 #include "piece.hpp"
 

@@ -45,7 +45,6 @@ bool Game::move(const Move &move) {
         board.move(move, algebraic_move);
         game_update_status(this);
         push_move(algebraic_move);
-        ++move_count;
         return true;
     }
     return false;
@@ -55,17 +54,50 @@ bool Game::redo() {
     if (board.redo()) {
         game_update_status(this);
         redo_move();
-        ++move_count;
         return true;
     }
     return false;
+}
+
+void Game::set_position(const Fen &fen) {
+    board.set_position(fen);
+    update();
+    move_list.clear();
+    move_list.push(AlgebraicMove{""});
+}
+
+bool Game::set_position(const char *fen_string) {
+    if (Fen fen; fen.set_fen(fen_string)) {
+        set_position(fen);
+        return true;
+    }
+    return false;
+}
+
+void Game::update() {
+    game_update_status(this);
+    using enum GameStatus;
+    using enum GameWinner;
+    if (game_is_playable(this)) {
+        winner = PLAYING;
+        if (player_is_ai(game_get_player(this, board.side_to_move))) {
+            move(player_get_move(game_get_player(this, board.side_to_move), board));
+        }
+    } else {
+        if (status == WHITE_CHECKMATE) {
+            winner = BLACK;
+        } else if (status == BLACK_CHECKMATE) {
+            winner = WHITE;
+        } else if (status == WHITE_STALEMATE || status == BLACK_STALEMATE || status == INSUFFICIENT_MATERIAL) {
+            winner = DRAW;
+        }
+    }
 }
 
 bool Game::undo() {
     if (board.undo()) {
         game_update_status(this);
         undo_move();
-        --move_count;
         return true;
     }
     return false;
@@ -111,7 +143,6 @@ void Game::reset() {
     board.populate();
     status = GameStatus::WHITE_TURN;
     winner = GameWinner::PLAYING;
-    move_count = 0;
     move_list.clear();
     push_move(AlgebraicMove{""});
 }

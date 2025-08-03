@@ -1,10 +1,8 @@
 #pragma once
 #include <array>
-#include <bit>
-#include <cstddef>
+#include "math.hpp"
 #include <cstdint>
 #include <utility>
-#include "../utils/utils.hpp"
 #include "piece.hpp"
 
 namespace game {
@@ -18,7 +16,7 @@ enum SquareIndex : uint8_t {
     A6,B6,C6,D6,E6,F6,G6,H6,
     A7,B7,C7,D7,E7,F7,G7,H7,
     A8,B8,C8,D8,E8,F8,G8,H8,
-    SQUARE_COUNT
+    SQUARE_COUNT, OUT_OF_BOUNDS = SQUARE_COUNT,
 };
 // clang-format on
 
@@ -28,12 +26,21 @@ enum File : uint8_t { FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FI
 
 enum Rank : uint8_t { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_COUNT };
 
+
 constexpr Rank rank_of (const SquareIndex sq) noexcept {
     return static_cast<Rank>(std::to_underlying(sq) >> 3);
 }
 
 constexpr File file_of (const SquareIndex sq) noexcept {
     return static_cast<File>(std::to_underlying(sq) & 7);
+}
+
+constexpr File file_of (const char f) noexcept {
+    return static_cast<File>(f - 'a');
+}
+
+constexpr Rank rank_of (const char r) noexcept {
+    return static_cast<Rank>(r - '1');
 }
 
 using RankArray = std::array<Piece, static_cast<std::size_t>(std::to_underlying(FILE_COUNT))>;
@@ -75,7 +82,7 @@ constexpr int32_t square_file(const SquareIndex sq) noexcept { return static_cas
 constexpr int32_t square_rank(const SquareIndex sq) noexcept { return static_cast<int32_t>(std::to_underlying(sq)) >> 3; }
 
 inline bool squares_same_diagonal(const SquareIndex a, const SquareIndex b) noexcept {
-    return utils::abs(square_file(a) - square_file(b)) == utils::abs(square_rank(a) - square_rank(b));
+    return gtr::abs(square_file(a) - square_file(b)) == gtr::abs(square_rank(a) - square_rank(b));
 }
 
 constexpr bool squares_same_main_diagonal(const SquareIndex a, const SquareIndex b) noexcept { return square_file(a) - square_rank(a) == square_file(b) - square_rank(b); }
@@ -83,4 +90,14 @@ constexpr bool squares_same_main_diagonal(const SquareIndex a, const SquareIndex
 constexpr bool squares_same_anti_diagonal(const SquareIndex a, const SquareIndex b) noexcept { return square_file(a) + square_rank(a) == square_file(b) + square_rank(b); }
 
 
-} // namespace game
+constexpr std::byte CASTLE_NONE{0};
+constexpr std::byte CASTLE_WHITE_KINGSIDE{1 << 0};
+constexpr std::byte CASTLE_WHITE_QUEENSIDE{1 << 1};
+constexpr std::byte CASTLE_BLACK_KINGSIDE{1 << 2};
+constexpr std::byte CASTLE_BLACK_QUEENSIDE{1 << 3};
+constexpr std::byte CASTLE_BLACK_ALL{CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE};
+constexpr std::byte CASTLE_WHITE_ALL{CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE};
+constexpr std::byte CASTLE_RIGHTS_ALL{CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE};
+constexpr int8_t CASTLE_RIGHTS_COUNT{16};
+
+} // namespace gam

@@ -13,6 +13,7 @@
 #include "allocator.hpp"
 #include "assert.hpp"
 #include "container_base.hpp"
+#include "math.hpp"
 #include "os.hpp"
 #define PARANOID_ASSERT(x) ((void)0)
 namespace gtr {
@@ -41,6 +42,8 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
 
     static_assert(N > 3 * sizeof(uint64_t), "Text N must be bigger 3 * sizeof(uint64_t)");
     static_assert(N % 16 == 0, "Buffer size N must be a multiple of 16 for safe SIMD loads.");
+
+    template <int32_t, class> friend struct char_string;
 
   private:
     alignas(c_allocator<char>::pointer_type) char data[N]{}; // Either a local buffer or [0] pointer, [1] size, [2] capacity and the last byte the heap flag
@@ -387,8 +390,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      *
      * @param str The text object to move from.
      */
-    char_string(char_string &&str) noexcept (std::allocator_traits<Allocator>::is_always_equal::value ||
-                                            std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value)
+    char_string(char_string &&str) noexcept
         : container_base<Allocator>((std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value || std::allocator_traits<Allocator>::is_always_equal::value)
                                         ? std::move(str.allocator())
                                         : Allocator{}) {
@@ -490,7 +492,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
             } else {
                 allocator().free(get_pointer(), capacity() + 1);
                 std::memset(data, 0, N); // unsets the heap flag
-                // If the allocator is not propagate let the destructor free the old data
+                // If the allocator does not propagate let the destructor free the old data
                 append(str.c_str());
             }
         }
@@ -648,6 +650,27 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      * @return A reference to the character at the specified index.
      */
     value_type &operator[](size_type i) { return local_data() ? data[i] : get_pointer()[i]; }
+
+    /**
+     * @brief Provides access to the character at the specified index.
+     * @param i The index of the character to access.
+     * @return value_type& A reference to the character at the specified index.
+     *
+     */
+    value_type &at(size_type i) {
+        Assert(i < size(), "Index out of range");
+        return local_data() ? data[i] : get_pointer()[i];
+    }
+
+    /**
+     * @brief Accesses the element at the specified index
+     * @param i The index of the element to retrieve.
+     * @return const value_type& A const reference to the element at the specified index.
+     */
+    value_type at(size_type i) const {
+        Assert(i < size(), "Index out of range");
+        return local_data() ? data[i] : get_pointer()[i];
+    }
 
     /**
      * @brief Extracts a substring from the text.
@@ -1479,7 +1502,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
 
     bool operator==(const value_type *str) const {
         const value_type *data_ptr = local_data() ? data : get_pointer();
-        return std::strncmp(data_ptr, str, std::max(std::strlen(str), size())) == 0;
+        return std::strncmp(data_ptr, str, MAX(std::strlen(str), size())) == 0;
     }
 
     /**
@@ -1498,8 +1521,9 @@ template <int32_t N = 64> char_string<N> format(const char *format, ...) {
     va_list args;
     va_start(args, format);
     char_string<N> result;
-    result.resize(N);
-    vsnprintf(result.get_pointer(), N, format, args);
+    auto size = vsnprintf(nullptr, 0, format, args);
+    result.resize(size);
+    vsnprintf(result.c_str(), size + 1, format, args);
     va_end(args);
     return result;
 }

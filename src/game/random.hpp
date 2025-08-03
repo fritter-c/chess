@@ -4,7 +4,7 @@ namespace game::detail {
 struct RandomGenerator {
     uint64_t seed{0x123456789ABCDEF0ULL};
     RandomGenerator() = default;
-    constexpr RandomGenerator(uint64_t s) : seed(s) {}
+    constexpr RandomGenerator(const uint64_t s) : seed(s) {}
     constexpr uint64_t next() {
         seed ^= seed << 21;
         seed ^= seed >> 35;

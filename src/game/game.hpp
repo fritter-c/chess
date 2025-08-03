@@ -17,7 +17,6 @@ struct Game {
     Player black_player{};
     GameStatus status{GameStatus::WHITE_TURN};
     GameWinner winner{GameWinner::PLAYING};
-    uint64_t move_count{0};
     history<AlgebraicMove> move_list{};
 
     Game();
@@ -52,5 +51,9 @@ struct Game {
     void pop_move() { move_list.pop(); }
     void undo_move() { move_list.undo(); }
     void redo_move() { move_list.redo(); }
+    void update();
+    void set_position(const Fen &fen);
+    bool set_position(const char *fen_string);
+
 };
 } // namespace game

@@ -91,9 +91,9 @@ struct BitBoardIterator {
 
     bool operator==(const BitBoardIterator &other) const = default;
 
-    static BitBoardIterator begin(BitBoard b) { return BitBoardIterator{b}; }
+    BitBoardIterator begin() const { return *this; }
 
-    static BitBoardIterator end() { return BitBoardIterator{0}; }
+    BitBoardIterator end() const { return BitBoardIterator{0}; }
 };
 
 enum BitBoardDirection : int8_t {
@@ -138,7 +138,7 @@ consteval std::array<std::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> genera
     return result;
 }
 } // namespace detail
-constexpr auto EN_PASSANT_INVALID_INDEX{-1};
+constexpr int8_t EN_PASSANT_INVALID_INDEX{-1};
 static constexpr std::array<std::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> EN_PASSANT_CONVERSION_TABLE = detail::generate_en_passant_conversion_table();
 
 struct AvailableMoves {
@@ -154,16 +154,7 @@ struct AvailableMoves {
 
 gtr::large_string print_bitboard(BitBoard board);
 
-constexpr std::byte CASTLE_NONE{0};
-constexpr std::byte CASTLE_WHITE_KINGSIDE{1 << 0};
-constexpr std::byte CASTLE_WHITE_QUEENSIDE{1 << 1};
-constexpr std::byte CASTLE_BLACK_KINGSIDE{1 << 2};
-constexpr std::byte CASTLE_BLACK_QUEENSIDE{1 << 3};
-constexpr std::byte CASTLE_BLACK_ALL{CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE};
-constexpr std::byte CASTLE_WHITE_ALL{CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE};
-constexpr std::byte CASTLE_RIGHTS_ALL{CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE};
-constexpr int8_t CASTLE_RIGHTS_COUNT{16};
-struct alignas(64) MagicBoards {
+struct MagicBoards {
     std::array<std::array<BitBoard, SQUARE_COUNT>, COLOR_COUNT> pawn_attacks;
     std::array<std::array<BitBoard, SQUARE_COUNT>, COLOR_COUNT> pawn_moves;
     std::array<BitBoard, SQUARE_COUNT> knight_attacks;
@@ -188,7 +179,7 @@ struct alignas(64) MagicBoards {
     std::array<uint32_t, SQUARE_COUNT> bishop_shift;
     std::array<uint32_t, SQUARE_COUNT> bishop_offset;
     std::array<uint16_t, 0x1480> bishop_unique_indexes;
-    std::array<BitBoard, 1426> bishop_unique_table; // Why im getting 1426 and not 1428 like in the wiki?
+    std::array<BitBoard, 1426> bishop_unique_table; // Why I am getting 1426 and not 1428 like in the wiki?
 
     template <PieceType T> BitBoard slider_attacks(BitBoard occ, const SquareIndex sq) const noexcept {
         if constexpr (T == ROOK) {
@@ -242,9 +233,9 @@ constexpr BitBoard Rank6 = 0x0000FF0000000000ULL;
 constexpr BitBoard Rank7 = 0x00FF000000000000ULL;
 constexpr BitBoard Rank8 = 0xFF00000000000000ULL;
 
-constexpr BitBoard bitboard_get_rank(SquareIndex s) noexcept { return Rank1 << (8 * (s >> 3)); }
+constexpr BitBoard bitboard_get_rank(const SquareIndex s) noexcept { return Rank1 << (8 * (s >> 3)); }
 
-constexpr BitBoard bitboard_get_file(SquareIndex s) noexcept { return FileA << (s & 7); }
+constexpr BitBoard bitboard_get_file(const SquareIndex s) noexcept { return FileA << (s & 7); }
 
 constexpr BitBoard NotFileA = ~FileA;
 constexpr BitBoard NotFileB = ~FileB;

@@ -8,7 +8,7 @@
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 
-constexpr auto VSYNC_HINT{0}; // 1 for vsync, 0 for no vsync
+constexpr auto VSYNC_HINT{1}; // 1 for vsync, 0 for no vsync
 namespace renderer {
 void toggle_fullscreen(GLFWwindow *window, const bool enable_fullscreen) {
     static int32_t windowed_xpos = 0;
@@ -126,7 +126,7 @@ int render() {
         return 1;
     }
 
-    GLFWimage main_icon = ImGui::LoadImage("logo.png"); // This leaks in the end
+    const GLFWimage main_icon = ImGui::LoadImage("logo.png"); // This leaks in the end
 
     glfwSetWindowIcon(window, 1, &main_icon);
     if (!load_board_resources()) {

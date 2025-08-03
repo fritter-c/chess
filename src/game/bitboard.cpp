@@ -1,6 +1,7 @@
 #include "bitboard.hpp"
 #include "board.hpp"
 #include "types.hpp"
+#include "utils.hpp"
 #include "unordered_map"
 namespace game {
 
@@ -74,12 +75,12 @@ template <typename Offsets> constexpr BitBoard make_attack_mask(const int32_t sq
 
 static void fill_sliders_magic(MagicBoards &mb) {
     static constexpr std::array MAGIC_SEEDS = {728, 10316, 55013, 32803, 12281, 15100, 16645, 255};
-    std::vector<BitBoard> rook_attack_table(0x19000, 0);
-    std::vector<BitBoard> bishop_attack_table(0x1480, 0);
+    gtr::vector<BitBoard> rook_attack_table(0x19000, 0);
+    gtr::vector<BitBoard> bishop_attack_table(0x1480, 0);
     {
         std::array<BitBoard, 4096> occupancy{};
         std::array<BitBoard, 4096> reference{};
-        std::mt19937_64 rng; // default seed is fine
+        std::mt19937_64 rng(MAGIC_SEEDS[0]);
         int32_t table_size = 0;
         int32_t rook_offset = 0;
         // Precomputed rook magic
@@ -101,7 +102,7 @@ static void fill_sliders_magic(MagicBoards &mb) {
             // record shift
             mb.rook_shift[sq] = 64 - static_cast<int32_t>(bits);
             mb.rook_offset[sq] = rook_offset;
-            const auto attacks = rook_attack_table.data() + rook_offset;
+            const auto attacks = rook_attack_table.data + rook_offset;
 
             BitBoard b = 0;
             table_size = 0;
@@ -135,7 +136,7 @@ static void fill_sliders_magic(MagicBoards &mb) {
     {
         std::array<BitBoard, 4096> occupancy{};
         std::array<BitBoard, 4096> reference{};
-        std::mt19937_64 rng;
+        std::mt19937_64 rng(MAGIC_SEEDS[0]);
         int32_t table_size = 0;
         int32_t bishop_offset = 0;
         for (int sq = A1; sq < SQUARE_COUNT; ++sq) {
@@ -157,7 +158,7 @@ static void fill_sliders_magic(MagicBoards &mb) {
                                167160161763488ULL,     281823138030088ULL,      9878570945347592ULL,    299205709136162ULL,      37177856496902150ULL,   61581377013768ULL,
                                74311627637326100ULL,   146386865335836672ULL,   4215721405385818112ULL, 26680405295616ULL,       577586652781301760ULL,  3035500922223723524ULL,
                                1729452900800922120ULL, 5489178154500616ULL,     9951275604095566880ULL, 614742792321237124ULL};
-            const auto attacks = bishop_attack_table.data() + bishop_offset;
+            const auto attacks = bishop_attack_table.data + bishop_offset;
 
             BitBoard b = 0;
             table_size = 0;
@@ -189,36 +190,36 @@ static void fill_sliders_magic(MagicBoards &mb) {
     }
     // Compress rook unique indexes
     {
-        std::unordered_map<BitBoard, std::vector<int32_t>> unique_rook_masks;
+        std::unordered_map<BitBoard, gtr::vector<int32_t>> unique_rook_masks;
         for (int32_t i = 0; i < rook_attack_table.size(); ++i) {
             const auto &mbit = rook_attack_table[i];
-            if (unique_rook_masks.find(mbit) == unique_rook_masks.end()) {
-                unique_rook_masks[mbit] = std::vector<int32_t>();
+            if (!unique_rook_masks.contains(mbit)) {
+                unique_rook_masks[mbit] = gtr::vector<int32_t>();
             }
             unique_rook_masks[mbit].push_back(i);
         }
         int16_t major_index = 0;
-        for (auto &pair : unique_rook_masks) {
-            mb.rook_unique_table[major_index] = pair.first;
-            for (const auto &index : pair.second) { mb.rook_unique_indexes[index] = major_index; }
+        for (const auto &[fst, snd] : unique_rook_masks) {
+            mb.rook_unique_table[major_index] = fst;
+            for (const auto &index : snd) { mb.rook_unique_indexes[index] = major_index; }
             major_index++;
         }
     }
 
     {
         // Compress bishop unique indexes
-        std::unordered_map<BitBoard, std::vector<int32_t>> unique_bishop_masks;
+        std::unordered_map<BitBoard, gtr::vector<int32_t>> unique_bishop_masks;
         for (int32_t i = 0; i < bishop_attack_table.size(); ++i) {
             const auto &mbit = bishop_attack_table[i];
-            if (unique_bishop_masks.find(mbit) == unique_bishop_masks.end()) {
-                unique_bishop_masks[mbit] = std::vector<int32_t>();
+            if (!unique_bishop_masks.contains(mbit)) {
+                unique_bishop_masks[mbit] = gtr::vector<int32_t>();
             }
             unique_bishop_masks[mbit].push_back(i);
         }
         int16_t major_index = 0;
-        for (auto &pair : unique_bishop_masks) {
-            mb.bishop_unique_table[major_index] = pair.first;
-            for (const auto &index : pair.second) { mb.bishop_unique_indexes[index] = major_index; }
+        for (const auto &[fst, snd] : unique_bishop_masks) {
+            mb.bishop_unique_table[major_index] = fst;
+            for (const auto &index : snd) { mb.bishop_unique_indexes[index] = major_index; }
             major_index++;
         }
     }

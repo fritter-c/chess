@@ -1,6 +1,7 @@
 #include "board.hpp"
 #include <cmath>
 #include "analyzer.hpp"
+#include "math.hpp"
 #include "types.hpp"
 
 namespace game {
@@ -32,6 +33,8 @@ void Board::init() {
     current_state->castle_rights = CASTLE_WHITE_KINGSIDE | CASTLE_WHITE_QUEENSIDE | CASTLE_BLACK_KINGSIDE | CASTLE_BLACK_QUEENSIDE;
     current_state->castle_rights_bit = bitboard_from_squares<G1, G8, C1, C8>();
     current_state->en_passant_index = EN_PASSANT_INVALID_INDEX;
+    side_to_move = PIECE_WHITE;
+    move_count = 0;
 }
 
 static bool board_can_move_basic(const Board *board, const uint8_t from_index, const uint8_t to_index) {
@@ -55,14 +58,6 @@ bool Board::is_en_passant(const int32_t from_row, const int32_t from_col, const 
     return PIECE_TYPE(pieces[get_index(from_row, from_col)]) == PAWN && PIECE_TYPE(pieces[get_index(to_row, to_col)]) == EMPTY && to_col != from_col;
 }
 
-static void board_do_castle(Board *board, const Move move) {
-    const auto queen_side = static_cast<int>(move.from_col() - move.to_col() > 0);
-    static constexpr std::array rook_orig_col = {7, 0};
-    static constexpr std::array rook_castled_col = {5, 3};
-    board->move_piece(move.from_row(), rook_orig_col[queen_side], move.from_row(), rook_castled_col[queen_side]);
-    board->move_piece(move.get_origin_index(), move.get_destination_index());
-}
-
 static bool on_corner(const int32_t row, const int32_t col) {
     static constexpr BitBoard corner_bitboard = bitboard_from_squares<A1, H1, A8, H8>();
     return bitboard_get(corner_bitboard, row, col);
@@ -77,11 +72,11 @@ static void board_undo_castle(Board *board, const Move move) {
 }
 
 static void update_rights(BoardState &state, Piece piece, const int32_t piece_row, const int32_t piece_col) {
-    bitboard_from_squares<G1, G8, C1, C8>();
     static constexpr std::array all_rights{~CASTLE_WHITE_ALL, ~CASTLE_BLACK_ALL};
     static constexpr std::array all_rights_bit{bitboard_from_squares<G8, C8>(), bitboard_from_squares<G1, C1>()};
     static constexpr std::array side_rights{std::array{~CASTLE_WHITE_KINGSIDE, ~CASTLE_BLACK_KINGSIDE}, std::array{~CASTLE_WHITE_QUEENSIDE, ~CASTLE_BLACK_QUEENSIDE}};
-    static constexpr std::array side_rights_bit{ // And & with this to remove the rights
+    static constexpr std::array side_rights_bit{
+        // And & with this to remove the rights
         std::array{bitboard_from_squares<G8, C1, C8>(), bitboard_from_squares<G1, G8, C8>()}, // White
         std::array{bitboard_from_squares<G1, C1, C8>(), bitboard_from_squares<G1, G8, C1>()}  // Black
     };
@@ -101,48 +96,47 @@ static void update_rights(BoardState &state, Piece piece, const int32_t piece_ro
     }
 }
 
-static void board_do_move(Board *board, const Move move, BoardState &state) {
-    Piece const &from_piece = board->pieces[move.get_origin()];
+static void apply_move(Board &board, const Move move, BoardState &state) {
+    const Piece from_piece = board.pieces[move.get_origin()];
     state.en_passant_index = EN_PASSANT_INVALID_INDEX; // Reset en passant index
     state.moved_piece = from_piece;
-
-    if (PIECE_TYPE(from_piece) == PAWN && utils::abs(move.from_row() - move.to_row()) == 2) {
+    state.captured_piece = board.pieces[Board::get_index(move.to_row(), move.to_col())];
+    if (PIECE_TYPE(from_piece) == PAWN && gtr::abs(move.from_row() - move.to_row()) == 2) {
         state.en_passant_index = static_cast<int8_t>(static_cast<int8_t>(move.get_destination()) + (IS_WHITE(from_piece) ? WHITE_DIRECTION : BLACK_DIRECTION));
     }
-
     update_rights(state, from_piece, move.from_row(), move.from_col());
-
-    if (move.is_en_passant()) {
-        // Remove the captured pawn
+    switch (move.get_special()) {
+    case Move::MOVE_EN_PASSANT: {
         const int32_t captured_row = PIECE_COLOR(from_piece) == PIECE_WHITE ? move.to_row() - 1 : move.to_row() + 1;
         const int32_t captured_col = move.to_col();
-        state.captured_piece = board->pieces[Board::get_index(captured_row, captured_col)];
-        board->remove_piece(captured_row, captured_col);
-    } else {
-        state.captured_piece = board->pieces[Board::get_index(move.to_row(), move.to_col())];
-        if (PIECE_TYPE(state.captured_piece) != EMPTY) {
-            board->remove_piece(move.to_row(), move.to_col());
-        }
+        state.captured_piece = board.pieces[Board::get_index(captured_row, captured_col)];
+        board.remove_piece(captured_row, captured_col);
+        board.remove_piece(move.get_origin_index());
+        board.put_piece(from_piece, move.get_destination_index());
+        break;
     }
-
-    board->move_piece(move.get_origin_index(), move.get_destination_index());
-}
-
-static void apply_move(Board &board, const Move move, BoardState &state) {
-    if (move.get_special() == Move::MOVE_CASTLE) {
-        board_do_castle(&board, move);
-    } else if (move.get_special() == Move::MOVE_PROMOTION) {
-        if (move.get_special() == Move::MOVE_PROMOTION) {
-            state.moved_piece = board.pieces[move.get_origin()];
-            state.captured_piece = board.pieces[move.get_destination()];
-            if (PIECE_TYPE(state.captured_piece) != EMPTY) {
-                board.remove_piece(move.get_destination_index());
-            }
-            board.put_piece(chess_piece_make(move.get_promotion_piece_type(), PIECE_COLOR(board.pieces[move.get_origin()])), move.get_destination_index());
-            board.remove_piece(move.get_origin_index());
+    case Move::MOVE_CASTLE: {
+        const auto queen_side = static_cast<int>(move.from_col() - move.to_col() > 0);
+        static constexpr std::array rook_orig_col = {7, 0};
+        static constexpr std::array rook_castled_col = {5, 3};
+        board.move_piece(move.from_row(), rook_orig_col[queen_side], move.from_row(), rook_castled_col[queen_side]);
+        board.move_piece(move.get_origin_index(), move.get_destination_index());
+    } break;
+    case Move::MOVE_PROMOTION:
+        if (PIECE_TYPE(state.captured_piece) != EMPTY) {
+            board.remove_piece(move.get_destination_index());
         }
-    } else {
-        board_do_move(&board, move, state);
+        board.remove_piece(move.get_origin_index());
+        board.put_piece(chess_piece_make(move.get_promotion_piece_type(), PIECE_COLOR(board.pieces[move.get_origin()])), move.get_destination_index());
+        break;
+    case Move::MOVE_NONE:
+    default:
+        if (PIECE_TYPE(state.captured_piece) != EMPTY) {
+            board.remove_piece(move.to_row(), move.to_col());
+        }
+        board.remove_piece(move.get_origin_index());
+        board.put_piece(from_piece, move.get_destination_index());
+        break;
     }
 }
 
@@ -151,16 +145,18 @@ void Board::move_stateless(const Move m, BoardState &state) {
     state.last_move = m;
     apply_move(*this, m, state);
     side_to_move = ~side_to_move; // Switch sides
+    move_count++;
 }
 
 void Board::move(const Move m) {
     Assert(board_can_move_basic(this, m.get_origin(), m.get_destination()), "Invalid move");
-    BoardState current_state_copy = *current_state; 
+    const BoardState current_state_copy = *current_state;
     state_history.push(current_state_copy);
     current_state = state_history.current();
     current_state->last_move = m;
     apply_move(*this, m, *current_state);
     side_to_move = ~side_to_move; // Switch sides
+    move_count++;
 }
 
 void Board::move(const Move m, AlgebraicMove &out_alg) {
@@ -180,12 +176,11 @@ bool Board::redo() {
     Assert(board_can_move_basic(this, move.get_origin(), move.get_destination()), "Invalid move");
     BoardState dummy{};
     apply_move(*this, move, dummy);
+    state_history.redo();
     side_to_move = ~side_to_move; // Switch sides
-    if (state_history.redo()) {
-        current_state = state_history.current();
-        return true;
-    }
-    return false;
+    current_state = state_history.current();
+    move_count++;
+    return true;
 }
 
 static bool do_undo(Board &board, const Move &move, const BoardState &state) {
@@ -201,7 +196,6 @@ static bool do_undo(Board &board, const Move &move, const BoardState &state) {
                 board.put_piece(state.captured_piece, move.get_destination_index());
             }
         }
-        board.side_to_move = ~board.side_to_move; // Switch sides
         return true;
     }
     return false;
@@ -213,23 +207,56 @@ bool Board::undo() {
         state_history.undo();
         current_state = state_history.current();
         side_to_move = ~side_to_move; // Switch sides
+        move_count--;
         return true;
     }
     return false;
 }
 
 bool Board::undo_stateless(const BoardState &state) {
-    Move move = state.last_move;
-    return do_undo(*this, move, state);
+    const Move move = state.last_move;
+    if (do_undo(*this, move, state)) {
+        side_to_move = ~side_to_move; // Switch sides
+        move_count--;
+        return true;
+    }
+    return false;
 }
 
 gtr::large_string Board::board_to_string() const {
     gtr::large_string board_str;
     for (int32_t row = 7; row >= 0; --row) {
-        for (int32_t col = 0; col < 8; ++col) { board_str += piece_to_string_short(pieces[get_index(row, col)]); }
+        for (int32_t col = 0; col < 8; ++col) { board_str += piece_to_string_font(pieces[get_index(row, col)]); }
         board_str += "\n";
     }
     return board_str;
 }
+
+void Board::set_position(const Fen &fen) {
+    state_history.clear();
+    state_history.push({});
+    std::memset(&pieces_by_type, 0, sizeof(pieces_by_type));
+    std::memset(&pieces_by_color, 0, sizeof(pieces_by_color));
+    std::memset(&pieces, 0, sizeof(pieces));
+    side_to_move = fen.turn();
+    move_count = fen.fullmove_number() - 1; // FEN fullmove_number starts at 1, we start at 0
+    current_state->castle_rights = fen.castle_rights();
+    current_state->castle_rights_bit |= (current_state->castle_rights & CASTLE_WHITE_KINGSIDE) != std::byte{0} ? bitboard_from_squares<G1>() : 0;
+    current_state->castle_rights_bit |= (current_state->castle_rights & CASTLE_WHITE_QUEENSIDE) != std::byte{0} ? bitboard_from_squares<C1>() : 0;
+    current_state->castle_rights_bit |= (current_state->castle_rights & CASTLE_BLACK_KINGSIDE) != std::byte{0} ? bitboard_from_squares<G8>() : 0;
+    current_state->castle_rights_bit |= (current_state->castle_rights & CASTLE_BLACK_QUEENSIDE) != std::byte{0} ? bitboard_from_squares<C8>() : 0;
+
+    const auto en_passant_index = fen.en_passant_square();
+    current_state->en_passant_index = en_passant_index == OUT_OF_BOUNDS ? EN_PASSANT_INVALID_INDEX : std::to_underlying(en_passant_index);
+    for (int32_t sq = A1; sq <= H8; ++sq) {
+        if (const auto piece = fen.piece_at(static_cast<SquareIndex>(sq)); piece == PIECE_NONE) {
+            pieces_by_type[EMPTY] |= bitboard_from_squares(sq);
+        } else {
+            put_piece(piece, static_cast<SquareIndex>(sq));
+        }
+    }
+}
+
+Fen Board::get_fen() const { return Fen::build(pieces, side_to_move, current_state->castle_rights, static_cast<SquareIndex>(current_state->en_passant_index), 0, move_count + 1); }
 
 } // namespace game

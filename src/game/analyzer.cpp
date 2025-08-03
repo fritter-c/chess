@@ -7,34 +7,67 @@
 #include "move.hpp"
 namespace game {
 const MagicBoards MAGIC_BOARD = detail::init_magic_boards();
-static bool analyzer_is_pawn_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+bool analyzer_is_pawn_attacking(const Board *board, const SquareIndex index, const Color attacker) {
     return MAGIC_BOARD.pawn_attackers[attacker][index] & board->pieces_by_type[PAWN] & board->pieces_by_color[attacker];
 }
 
-static bool analyzer_is_knight_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+bool analyzer_is_knight_attacking(const Board *board, const SquareIndex index, const Color attacker) {
     return MAGIC_BOARD.knight_attackers[index] & board->pieces_by_type[KNIGHT] & board->pieces_by_color[attacker];
 }
 
-static bool analyzer_is_king_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+bool analyzer_is_king_attacking(const Board *board, const SquareIndex index, const Color attacker) {
     return MAGIC_BOARD.king_attackers[index] & board->pieces_by_type[KING] & board->pieces_by_color[attacker];
 }
 
-static bool analyzer_is_rook_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+bool analyzer_is_rook_attacking(const Board *board, const SquareIndex index, const Color attacker) {
     const BitBoard occ = board->pieces_by_type[ANY];
     const BitBoard rooks = board->pieces_by_type[ROOK] & board->pieces_by_color[attacker];
     return bitboard_get(MAGIC_BOARD.slider_attacks<ROOK>(occ, rooks), index);
 }
 
-static bool analyzer_is_bishop_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+bool analyzer_is_bishop_attacking(const Board *board, const SquareIndex index, const Color attacker) {
     const BitBoard occ = board->pieces_by_type[ANY];
     const BitBoard bishops = board->pieces_by_type[BISHOP] & board->pieces_by_color[attacker];
     return bitboard_get(MAGIC_BOARD.slider_attacks<BISHOP>(occ, bishops), index);
 }
 
-static bool analyzer_is_queen_attacking(const Board *board, const SquareIndex index, const Color attacker) {
+bool analyzer_is_queen_attacking(const Board *board, const SquareIndex index, const Color attacker) {
     const BitBoard occ = board->pieces_by_type[ANY];
     const BitBoard queens = board->pieces_by_type[QUEEN] & board->pieces_by_color[attacker];
     return bitboard_get(MAGIC_BOARD.slider_attacks<QUEEN>(occ, queens), index);
+}
+
+bool analyzer_is_queen_attacking(const Board *board,const SquareIndex index, Color , SquareIndex origin) {
+    const BitBoard occ = board->pieces_by_type[ANY];
+    const BitBoard attacks = MAGIC_BOARD.slider_attacks<QUEEN>(occ, origin);
+    return bitboard_get(attacks, index);
+}
+
+bool analyzer_is_pawn_attacking(const Board *, const SquareIndex index,const Color attacker, const SquareIndex origin) {
+    const BitBoard pawn_attackers = MAGIC_BOARD.pawn_attackers[attacker][index];
+    return bitboard_get(pawn_attackers, origin);
+}
+
+bool analyzer_is_knight_attacking(const Board *, const SquareIndex index, Color , const SquareIndex origin) {
+    const BitBoard knight_attacks = MAGIC_BOARD.knight_attackers[index];
+    return bitboard_get(knight_attacks, origin);
+}
+
+bool analyzer_is_king_attacking(const Board *,const SquareIndex index, Color , SquareIndex origin) {
+    const BitBoard king_attacks = MAGIC_BOARD.king_attackers[index];
+    return bitboard_get(king_attacks, origin);
+}
+
+bool analyzer_is_rook_attacking(const Board *board,const SquareIndex index, const Color, const SquareIndex origin) {
+    const BitBoard occ = board->pieces_by_type[ANY];
+    const BitBoard attacks = MAGIC_BOARD.slider_attacks<ROOK>(occ, origin);
+    return bitboard_get(attacks, index);
+}
+
+bool analyzer_is_bishop_attacking(const Board *board,const SquareIndex index, Color , const SquareIndex origin) {
+    const BitBoard occ = board->pieces_by_type[ANY];
+    const BitBoard attacks = MAGIC_BOARD.slider_attacks<BISHOP>(occ, origin);
+    return bitboard_get(attacks, index);
 }
 
 bool analyzer_is_cell_under_attack_by_color(const Board *board, const int32_t row, const int32_t col, const Color attacker) {
@@ -125,9 +158,9 @@ AvailableMoves analyzer_filter_legal_moves(Board *board, const AvailableMoves mo
     move.from_row = Board::get_row(moves.origin_index);
     move.from_col = Board::get_col(moves.origin_index);
     legal.origin_index = moves.origin_index;
-    for (auto it = BitBoardIterator::begin(moves.bits); it != BitBoardIterator::end(); ++it) {
-        move.to_row = Board::get_row(*it);
-        move.to_col = Board::get_col(*it);
+    for (auto it: BitBoardIterator(moves.bits)) {
+        move.to_row = Board::get_row(it);
+        move.to_col = Board::get_col(it);
         if (analyzer_is_move_legal(board, move)) {
             legal.set(move.to_row, move.to_col);
         }
@@ -149,7 +182,7 @@ bool analyzer_is_color_in_checkmate(Board *board, Color color) {
     return analyzer_get_legal_move_count(board, color) == 0;
 }
 
-Move analyzer_get_move_from_simple(Board *board, const SimpleMove &move, PromotionPieceType promotion_type) {
+Move analyzer_get_move_from_simple(const Board *board, const SimpleMove &move, const PromotionPieceType promotion_type) {
     Move result{};
     result.set_origin(static_cast<uint8_t>(Board::get_index(move.from_row, move.from_col)));
     result.set_destination(static_cast<uint8_t>(Board::get_index(move.to_row, move.to_col)));
@@ -161,16 +194,14 @@ Move analyzer_get_move_from_simple(Board *board, const SimpleMove &move, Promoti
     } else if (board->pawn_is_being_promoted(move)) {
         result.set_special(Move::MOVE_PROMOTION);
         result.set_promotion_piece(promotion_type);
-    } else {
-        result.set_special(Move::MOVE_NONE);
     }
     return result;
 }
 
 int64_t analyzer_get_legal_move_count(Board *board, Color color) {
     int64_t count = 0;
-    for (auto it = BitBoardIterator::begin(board->pieces_by_color[color]); it != BitBoardIterator::end(); ++it) {
-        const auto moves = analyzer_get_pseudo_legal_moves_for_piece(board, *it);
+    for (const auto it : BitBoardIterator(board->pieces_by_color[color])) {
+        const auto moves = analyzer_get_pseudo_legal_moves_for_piece(board, it);
         const auto legal_moves = analyzer_filter_legal_moves(board, moves);
         count += legal_moves.move_count();
     }
@@ -241,8 +272,8 @@ bool analyzer_move_puts_to_check(Board *board, const Move &move) {
 bool analyzer_move_puts_to_checkmate(Board *board, const Move &move) {
     const auto friendly = PIECE_COLOR(board->pieces[move.get_origin()]);
     bool result = false;
-    BoardState state{};
     if (analyzer_is_move_legal(board, move)) {
+        BoardState state{};
         board->move_stateless(move, state);
         if (analyzer_is_color_in_checkmate(board, ~friendly)) {
             result = true;
@@ -261,13 +292,13 @@ bool analyzer_is_move_legal(Board *board, const Move &move) {
         }
 
         if (move.king_side_castle()) {
-            for (auto sq : CASTLE_KING_SQUARES[std::to_underlying(friendly)]) {
+            for (const auto sq : CASTLE_KING_SQUARES[std::to_underlying(friendly)]) {
                 if (analyzer_is_cell_under_attack_by_color(board, Board::get_row(sq), Board::get_col(sq), ~friendly)) {
                     return false;
                 }
             }
         } else {
-            for (auto sq : CASTLE_QUEEN_SQUARES[std::to_underlying(friendly)]) {
+            for (const auto sq : CASTLE_QUEEN_SQUARES[std::to_underlying(friendly)]) {
                 if (analyzer_is_cell_under_attack_by_color(board, Board::get_row(sq), Board::get_col(sq), ~friendly)) {
                     return false;
                 }
