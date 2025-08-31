@@ -14,6 +14,26 @@ add_custom_target(copy_resources ALL
     COMMENT "Copying res/ → ${CMAKE_SOURCE_DIR}/bin/$<CONFIG>"
 )
 include_directories(gtr)
-add_subdirectory(gtr)
+
+# Optimizations
+if (MSVC)
+    add_compile_options($<$<CONFIG:RelWithDebInfo>:/O2>  $<$<CONFIG:Release>:/O2>)
+else ()
+    add_compile_options($<$<CONFIG:RelWithDebInfo>:-O3> $<$<CONFIG:Release>:-O3>)
+endif ()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-mpopcnt)
+endif ()
+
 add_subdirectory(imgui)
+
+# Warnings
+if (MSVC)
+    add_compile_options(/W4 /EHsc)
+else ()
+    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif ()
+
+add_subdirectory(gtr)
 add_subdirectory(src)

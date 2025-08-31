@@ -61,6 +61,11 @@ inline const char *piece_to_string(const Piece p) {
 #define IS_WHITE(PIECE) PIECE_COLOR(PIECE) == game::PIECE_WHITE
 #define IS_BLACK(PIECE) PIECE_COLOR(PIECE) == game::PIECE_BLACK
 #define IS_PAWN(PIECE) PIECE_TYPE(PIECE) == game::PAWN
+#define IS_KNIGHT(PIECE) PIECE_TYPE(PIECE) == game::KNIGHT
+#define IS_BISHOP(PIECE) PIECE_TYPE(PIECE) == game::BISHOP
+#define IS_ROOK(PIECE) PIECE_TYPE(PIECE) == game::ROOK
+#define IS_QUEEN(PIECE) PIECE_TYPE(PIECE) == game::QUEEN
+#define IS_KING(PIECE) PIECE_TYPE(PIECE) == game::KING
 
 inline char piece_to_string_font(Piece p) {
     static constexpr std::array piece_font_table = {std::array{'z', 'O', 'M', 'V', 'T', 'W', 'L'}, std::array{'z', 'P', 'N', 'B', 'R', 'Q', 'K'}};

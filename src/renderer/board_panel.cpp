@@ -1,6 +1,8 @@
 #include "board_panel.hpp"
 #include "../game/fen.hpp"
 #include "../game/player.hpp"
+#include "imgui.h"
+#include "profiler_window.hpp"
 
 namespace renderer {
 // Until I have a better font I have to split the output and change fonts back and forth
@@ -142,6 +144,8 @@ static void render_debug_info(BoardPanel *panel) {
     default: ImGui::TextUnformatted("Unknown Magic Board"); break;
     }
     ImGui::End();
+
+    render_profiler();
 }
 extern int toggle_fullscreen();
 void BoardPanel::render() {
@@ -177,7 +181,11 @@ void BoardPanel::render() {
             ImGui::Text("Dragging None");
         }
 
-        ImGui::Text("Move count %lu", chess_game.board.move_count);
+        ImGui::Text("Move count %d", chess_game.board.move_count);
+#if 1
+        ImGui::Text("Legal move count %d", game::analyzer_get_legal_move_count(&chess_game.board, chess_game.board.side_to_move));
+#endif
+
         ImGui::Text("Status %s (%s)", chess_game.get_status_string(), chess_game.get_winner_string());
 
         ImGui::EndChild();
@@ -241,7 +249,7 @@ void BoardPanel::render() {
         }
 
         if (ImGui::BeginPopup("Move Error")) {
-            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%s", game::conversion_error_to_string(move_error).c_str());
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%s", game::conversion_error_to_string(move_error));
             ImGui::EndPopup();
         }
         if (debug_chess_board) {
@@ -260,15 +268,15 @@ void BoardPanel::render() {
             ImGui::TableSetupColumn("Black", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableHeadersRow();
 
-            for (auto i = 1; i <= chess_game.move_list.read_index; i += 2) {
+            for (auto i = 1ULL; i <= chess_game.move_list.read_index; i += 2) {
 
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
-                ImGui::Text("%d.", (i / 2) + 1);
+                ImGui::Text("%d.", static_cast<int32_t>(i / 2) + 1);
                 ImGui::TableNextColumn();
                 write_move_with_icon(chess_game.move_list[i]);
                 ImGui::TableNextColumn();
-                if (i + 1 <= chess_game.move_list.read_index) {
+                if (i + 1ULL <= chess_game.move_list.read_index) {
                     write_move_with_icon(chess_game.move_list[i + 1]);
                 }
             }

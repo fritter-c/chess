@@ -129,7 +129,10 @@ static MoveParserConversionError algebraic_pawn_to_move(const Color turn, const 
         case 'R': result.set_promotion_piece(PROMOTION_ROOK); break;
         case 'B': result.set_promotion_piece(PROMOTION_BISHOP); break;
         case 'N': result.set_promotion_piece(PROMOTION_KNIGHT); break;
-        default : result.set_promotion_piece(PROMOTION_QUEEN); break;
+        default : {
+            result = Move{};
+            return INVALID_PROMOTION_PIECE;
+        }
         }
     } else {
         if (rank_of(result.get_destination()) == (turn == PIECE_WHITE ? RANK_8 : RANK_1)) {
@@ -320,7 +323,7 @@ MoveParserConversionError algebraic_to_move(const Color turn, const Board &board
         return algebraic_pawn_to_move(turn, board, move, result);
     }
 
-    if (capture && move.size() < 4 || move.size() < 3) {
+    if ((capture && move.size() < 4) || move.size() < 3) {
         result = Move{};
         return TOO_LITTLE_INFORMATION;
     }
@@ -332,7 +335,7 @@ MoveParserConversionError algebraic_to_move(const Color turn, const Board &board
     return algebraic_complex_to_move(turn, board, move, result);
 }
 
-gtr::string conversion_error_to_string(const MoveParserConversionError e) noexcept {
+const char* conversion_error_to_string(const MoveParserConversionError e) noexcept {
     using enum MoveParserConversionError;
     switch (e) {
     case NONE                                         : return "Move parsed successfully.";
@@ -343,6 +346,7 @@ gtr::string conversion_error_to_string(const MoveParserConversionError e) noexce
     case INVALID_RANK_DISAMBIGUATION                  : return "Invalid rank in disambiguation: must be ‘1’ through ‘8’.";
     case INVALID_DISAMBIGUATION                       : return "Invalid disambiguation: please use a valid file or rank.";
     case PAWN_MOVE_TO_PROMOTION_RANK_WITHOUT_PROMOTION: return "Invalid promotion: Specify promotion piece type.";
+    case INVALID_PROMOTION_PIECE                      : return "Invalid promotion piece type: use Q, R, B or N.";
     case COULD_NOT_PARSE_DESTINATION                  : return "Could not parse destination square: file (a-h) and rank(1-8).";
     case INVALID_PIECE_TYPE                           : return "Invalid piece type: use K, Q, R, B, N or omit for pawn.";
     case TOO_LITTLE_INFORMATION                       : return "Insufficient information: move notation too short.";

@@ -46,19 +46,40 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
     template <int32_t, class> friend struct char_string;
 
   private:
+    struct str_impl {
+        value_type *data;  // Pointer to the dynamically allocated data
+        uint64_t size;     // Size of the string
+        uint64_t capacity; // Capacity of the string
+    };
+
     alignas(c_allocator<char>::pointer_type) char data[N]{}; // Either a local buffer or [0] pointer, [1] size, [2] capacity and the last byte the heap flag
                                                              // Data is a union {char[N]; {char *, uint64_t, uint64_t}; }
+
+    static uint32_t lsb(uint32_t bb) {
+#if defined(__has_builtin)
+#if __has_builtin(__builtin_ctzll)
+        return __builtin_ctzll(bb);
+#endif
+#elif defined(_MSC_VER)
+        unsigned long index{0};
+        _BitScanForward(&index, bb);
+        return index;
+#else
+        return std::countr_zero(bb);
+#endif
+    }
+
     uint64_t strlen() const {
-        PARANOID_ASSERT(!local_data());
+        PARANOID_ASSERT(local_data());
         if (!data[0])
             return 0;
         const char *s = data;
         const __m128i zero = _mm_setzero_si128();
         while (true) {
-            const __m128i chunk = _mm_loadu_si128(std::bit_cast<const __m128i *>(s));
+            const __m128i chunk = _mm_loadu_si128(static_cast<const __m128i *>(static_cast<const void *>(s)));
             const __m128i cmp = _mm_cmpeq_epi8(chunk, zero);
             if (const uint32_t mask = _mm_movemask_epi8(cmp); mask != 0) {
-                return (s - data) + std::countr_zero(mask);
+                return (s - data) + lsb(mask);
             }
             s += 16;
         }
@@ -71,11 +92,11 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
         const auto diff = static_cast<int32_t>(a.size() - b.size());
         if (!diff) {
             for (uint64_t i = 0; i < a.size(); i += 16) {
-                const __m128i chunk1 = _mm_loadu_si128(std::bit_cast<const __m128i *>(s1 + i));
-                const __m128i chunk2 = _mm_loadu_si128(std::bit_cast<const __m128i *>(s2 + i));
+                const __m128i chunk1 = _mm_loadu_si128(static_cast<const __m128i *>(static_cast<const void*>(s1 + i)));
+                const __m128i chunk2 = _mm_loadu_si128(static_cast<const __m128i *>(static_cast<const void*>(s2 + i)));
                 const __m128i cmp = _mm_cmpeq_epi8(chunk1, chunk2);
                 if (const int32_t mask = _mm_movemask_epi8(cmp); mask != 0xFFFF) {
-                    const int32_t diffIndex = std::countr_zero(static_cast<uint32_t>(~mask));
+                    const int32_t diffIndex = lsb(static_cast<uint32_t>(~mask));
                     const uint64_t index = i + diffIndex;
                     return static_cast<unsigned char>(s1[index]) - static_cast<unsigned char>(s2[index]);
                 }
@@ -108,7 +129,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     value_type *&get_pointer() {
         PARANOID_ASSERT(!local_data());
-        return *std::bit_cast<value_type **>(&data[0]);
+        return std::launder(static_cast<str_impl *>(static_cast<void *>(data)))->data;
     }
 
     /**
@@ -122,7 +143,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     const value_type *const &get_pointer() const {
         PARANOID_ASSERT(!local_data());
-        return *std::bit_cast<const value_type *const *>(&data[0]);
+        return std::launder(static_cast<const str_impl *const>(static_cast<const void *const>(data)))->data;
     }
 
     /**
@@ -159,7 +180,12 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      * This function sets the last byte of the local buffer to 1 to indicate
      * that the data is stored in the heap
      */
-    void set_heap() { data[N - 1] = 1; }
+    void set_heap() {
+        if (local_data()) {
+            ::new (data) str_impl{nullptr, 0, 0};
+        }
+        data[N - 1] = 1;
+    }
 
     /**
      * @brief Constructs an  text object.
@@ -182,7 +208,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
         if (local_data()) {
             return strlen();
         }
-        return std::bit_cast<const size_type *>(&data[0])[1];
+        return std::launder(static_cast<const str_impl *const>(static_cast<const void *const>(data)))->size;
     }
 
     /**
@@ -227,7 +253,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
         if (local_data()) {
             return N - 1;
         }
-        return std::bit_cast<const size_type *>(&data[0])[2];
+        return std::launder(static_cast<const str_impl *const>(static_cast<const void *const>(data)))->capacity;
     }
 
     /**
@@ -240,7 +266,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     void set_size(const size_type new_size) {
         if (!local_data()) {
-            std::bit_cast<size_type *>(&data[0])[1] = new_size;
+            std::launder(static_cast<str_impl *>(static_cast<void *>(data)))->size = new_size;
         }
     }
 
@@ -255,7 +281,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      */
     void set_capacity(const size_type new_capacity) {
         if (!local_data()) {
-            std::bit_cast<size_type *>(&data[0])[2] = new_capacity;
+            std::launder(static_cast<str_impl *>(static_cast<void *>(data)))->capacity = new_capacity;
         }
     }
 
@@ -358,6 +384,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
     ~char_string() {
         if (!local_data()) {
             allocator().free(get_pointer(), capacity() + 1);
+            std::launder(static_cast<str_impl *>(static_cast<void *>(data)))->~str_impl();
         }
         std::memset(data, 0, N);
     }
@@ -438,41 +465,6 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
     }
 
     /**
-     * @brief Converts a given value to a text representation with optional decimal places.
-     *
-     * This function template converts a value of type T to a text object. It supports
-     * integral and floating-point types. For integral types, the value is formatted as
-     * a long or unsigned long. For floating-point types, the value is formatted with
-     * a specified number of decimal places.
-     *
-     * @tparam T The type of the value to be converted. Supported types include integral
-     *           and floating-point types.
-     * @param value The value to be converted to text.
-     * @param decimal_places The number of decimal places to include in the text representation
-     *                       for floating-point values. Default is 5.
-     * @return text The text representation of the given value.
-     */
-    template <typename T> static char_string to_string(T value, int32_t decimal_places = 5) {
-        char_string result;
-        if constexpr (std::is_integral_v<T>) {
-            if constexpr (std::is_signed_v<T>) {
-                result.format("%ld", static_cast<long>(value));
-            } else {
-                result.format("%lu", static_cast<unsigned long>(value));
-            }
-        } else if constexpr (std::is_floating_point_v<T>) {
-            if constexpr (std::is_same_v<T, float>) {
-                result.format("%.*f", decimal_places, value);
-            } else if constexpr (std::is_same_v<T, double>) {
-                result.format("%.*lf", decimal_places, value);
-            } else {
-                result.format("%.*Lf", decimal_places, value);
-            }
-        }
-        return result;
-    }
-
-    /**
      * @brief Assigns a C-style string to the text object.
      *
      * This method assigns a C-style string to the text object. It calculates the length
@@ -490,9 +482,10 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
                 std::memcpy(data, str.data, N);
                 std::memset(str.data, 0, N);
             } else {
-                allocator().free(get_pointer(), capacity() + 1);
-                std::memset(data, 0, N); // unsets the heap flag
-                // If the allocator does not propagate let the destructor free the old data
+                if (!local_data()) {
+                    allocator().free(get_pointer(), capacity() + 1);
+                }
+                std::memset(data, 0, N);
                 append(str.c_str());
             }
         }
@@ -766,7 +759,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      * @param str The C-style string to insert.
      */
     void insert(const int32_t index, const value_type *str) {
-        const auto len = strlen(str);
+        const auto len = ::strlen(str);
         reserve(size() + len);
         value_type *data_ptr = local_data() ? data : get_pointer();
         std::memmove(data_ptr + index + len, data_ptr + index, size() - index);
@@ -886,7 +879,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      * @param start The starting index of the portion to erase.
      * @param count The number of characters to erase.
      */
-    void erase(int32_t start, int32_t count) {
+    void erase(int32_t start, size_type count) {
         if (start >= size()) {
             return;
         }
@@ -1061,21 +1054,6 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
     }
 
     /**
-     * @brief Overloads the += operator to append the given text to the current text.
-     *
-     * This operator allows for the concatenation of another text object to the current
-     * text object using the += syntax. It appends the content of the provided text
-     * object to the current text object and returns a reference to the current text object.
-     *
-     * @param str The text object to be appended to the current text object.
-     * @return text& A reference to the current text object after appending the given text.
-     */
-    char_string &operator+=(char_string &str) {
-        append(str);
-        return *this;
-    }
-
-    /**
      * @brief Counts the occurrences of a character in the text.
      *
      * This function counts the number of occurrences of the specified character
@@ -1103,7 +1081,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      *
      * @return A constant pointer to the underlying data.
      */
-    operator const value_type *() const {
+    explicit operator const value_type *() const {
         if (local_data()) [[likely]] {
             return data;
         }
@@ -1172,24 +1150,6 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
     }
 
     /**
-     * @brief Reverses the text container.
-     *
-     * This function creates a new text object with the characters of the
-     * current text object in reverse order. It returns the reversed text object.
-     *
-     * @return A new text object with the characters in reverse order.
-     */
-    char_string reversed() {
-        char_string result;
-        result.resize(size());
-        const value_type *data_ptr = local_data() ? data : get_pointer();
-        const value_type *result_ptr = result.local_data() ? result.data : result.get_pointer();
-        for (uint64_t i = 0; i < size(); ++i) { result_ptr[size() - i - 1] = data_ptr[i]; }
-        result_ptr[size()] = '\0';
-        return result;
-    }
-
-    /**
      * @brief Checks if the text is a number.
      *
      * This function checks if the text contains only numeric characters.
@@ -1198,7 +1158,7 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
      * @return true if the text is a number, false otherwise.
      */
     bool is_number() {
-        auto is_digit_or_dot = [](const value_type c) { return c >= '0' && c <= '9' || c == '.'; };
+        auto is_digit_or_dot = [](const value_type c) { return (c >= '0' && c <= '9') || c == '.'; };
         const value_type *data_ptr = local_data() ? data : get_pointer();
         for (uint64_t i = 0; i < size(); ++i) {
             if (!is_digit_or_dot(data_ptr[i])) {
@@ -1517,14 +1477,13 @@ template <int32_t N = 64, class Allocator = c_allocator<char>> struct char_strin
     auto operator<=>(const char_string &str) const { return sse_strncmp(*this, str) <=> 0; }
 };
 
-template <int32_t N = 64> char_string<N> format(const char *format, ...) {
-    va_list args;
-    va_start(args, format);
+
+template <int32_t N = 64, class ... Args>
+char_string<N> format(const char *fmt, Args&& ... args) {
     char_string<N> result;
-    auto size = vsnprintf(nullptr, 0, format, args);
+    const auto size = std::snprintf(nullptr, 0, fmt, std::forward<Args>(args)...);
     result.resize(size);
-    vsnprintf(result.c_str(), size + 1, format, args);
-    va_end(args);
+    std::snprintf(result.c_str(), size + 1, fmt, std::forward<Args>(args)...);
     return result;
 }
 

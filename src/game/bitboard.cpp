@@ -1,19 +1,20 @@
 #include "bitboard.hpp"
 #include "board.hpp"
+#include "pair.hpp"
 #include "types.hpp"
-#include "utils.hpp"
 #include "unordered_map"
+#include "utils.hpp"
 namespace game {
-
+namespace detail {
 static BitBoard sliding_attacks_rook(const SquareIndex sq, const BitBoard occ) noexcept {
     BitBoard attacks = 0;
     const int32_t r = std::to_underlying(sq) / 8;
     const int32_t c = std::to_underlying(sq) % 8;
-    static constexpr std::array rook_dirs{
-        std::pair{+1, 0},
-        std::pair{-1, 0},
-        std::pair{0, +1},
-        std::pair{0, -1},
+    static constexpr gtr::array rook_dirs{
+        gtr::pair{+1, 0},
+        gtr::pair{-1, 0},
+        gtr::pair{0, +1},
+        gtr::pair{0, -1},
     };
     for (auto [dr, dc] : rook_dirs) {
         int32_t rr = r + dr;
@@ -36,11 +37,11 @@ static BitBoard sliding_attacks_bishop(const SquareIndex sq, const BitBoard occ)
     const int32_t r = std::to_underlying(sq) / 8;
     const int32_t c = std::to_underlying(sq) % 8;
 
-    static constexpr std::array bishop_dirs{
-        std::pair{+1, +1},
-        std::pair{+1, -1},
-        std::pair{-1, +1},
-        std::pair{-1, -1},
+    static constexpr gtr::array bishop_dirs{
+        gtr::pair{+1, +1},
+        gtr::pair{+1, -1},
+        gtr::pair{-1, +1},
+        gtr::pair{-1, -1},
     };
 
     for (auto [dr, dc] : bishop_dirs) {
@@ -74,12 +75,12 @@ template <typename Offsets> constexpr BitBoard make_attack_mask(const int32_t sq
 }
 
 static void fill_sliders_magic(MagicBoards &mb) {
-    static constexpr std::array MAGIC_SEEDS = {728, 10316, 55013, 32803, 12281, 15100, 16645, 255};
+    static constexpr gtr::array MAGIC_SEEDS = {728, 10316, 55013, 32803, 12281, 15100, 16645, 255};
     gtr::vector<BitBoard> rook_attack_table(0x19000, 0);
     gtr::vector<BitBoard> bishop_attack_table(0x1480, 0);
     {
-        std::array<BitBoard, 4096> occupancy{};
-        std::array<BitBoard, 4096> reference{};
+        gtr::array<BitBoard, 4096> occupancy{};
+        gtr::array<BitBoard, 4096> reference{};
         std::mt19937_64 rng(MAGIC_SEEDS[0]);
         int32_t table_size = 0;
         int32_t rook_offset = 0;
@@ -110,7 +111,7 @@ static void fill_sliders_magic(MagicBoards &mb) {
                 occupancy[table_size] = b;
                 reference[table_size] = sliding_attacks_rook(static_cast<SquareIndex>(sq), b);
                 ++table_size;
-                b = b - mask & mask;
+                b = (b - mask) & mask;
             } while (b);
 
             uint64_t &best_magic{mb.rook_magic[sq]};
@@ -134,8 +135,8 @@ static void fill_sliders_magic(MagicBoards &mb) {
     }
 
     {
-        std::array<BitBoard, 4096> occupancy{};
-        std::array<BitBoard, 4096> reference{};
+        gtr::array<BitBoard, 4096> occupancy{};
+        gtr::array<BitBoard, 4096> reference{};
         std::mt19937_64 rng(MAGIC_SEEDS[0]);
         int32_t table_size = 0;
         int32_t bishop_offset = 0;
@@ -166,7 +167,7 @@ static void fill_sliders_magic(MagicBoards &mb) {
                 occupancy[table_size] = b;
                 reference[table_size] = sliding_attacks_bishop(static_cast<SquareIndex>(sq), b);
                 ++table_size;
-                b = b - mask & mask;
+                b = (b - mask) & mask;
             } while (b);
 
             uint64_t &best_magic{mb.bishop_magic[sq]};
@@ -191,12 +192,12 @@ static void fill_sliders_magic(MagicBoards &mb) {
     // Compress rook unique indexes
     {
         std::unordered_map<BitBoard, gtr::vector<int32_t>> unique_rook_masks;
-        for (int32_t i = 0; i < rook_attack_table.size(); ++i) {
+        for (auto i = 0ULL; i < rook_attack_table.size(); ++i) {
             const auto &mbit = rook_attack_table[i];
             if (!unique_rook_masks.contains(mbit)) {
                 unique_rook_masks[mbit] = gtr::vector<int32_t>();
             }
-            unique_rook_masks[mbit].push_back(i);
+            unique_rook_masks[mbit].push_back(static_cast<int32_t>(i));
         }
         int16_t major_index = 0;
         for (const auto &[fst, snd] : unique_rook_masks) {
@@ -209,12 +210,12 @@ static void fill_sliders_magic(MagicBoards &mb) {
     {
         // Compress bishop unique indexes
         std::unordered_map<BitBoard, gtr::vector<int32_t>> unique_bishop_masks;
-        for (int32_t i = 0; i < bishop_attack_table.size(); ++i) {
+        for (auto i = 0ULL; i < bishop_attack_table.size(); ++i) {
             const auto &mbit = bishop_attack_table[i];
             if (!unique_bishop_masks.contains(mbit)) {
                 unique_bishop_masks[mbit] = gtr::vector<int32_t>();
             }
-            unique_bishop_masks[mbit].push_back(i);
+            unique_bishop_masks[mbit].push_back(static_cast<int32_t>(i));
         }
         int16_t major_index = 0;
         for (const auto &[fst, snd] : unique_bishop_masks) {
@@ -224,12 +225,31 @@ static void fill_sliders_magic(MagicBoards &mb) {
         }
     }
 }
-MagicBoards detail::init_magic_boards() {
+
+consteval gtr::array<gtr::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> generate_en_passant_conversion_table() {
+    gtr::array<gtr::array<BitBoard, SQUARE_COUNT + 1>, COLOR_COUNT> result{};
+    for (int32_t i = 1; i <= SQUARE_COUNT; ++i) {
+        // These are the index of the squares where the en passant can be applied for white pieces and black to capture
+        if (i >= 17 && i <= 24) {
+            result[PIECE_WHITE][i] = bitboard_from_squares(i - 1);
+        }
+    }
+    for (int32_t i = 1; i <= SQUARE_COUNT; ++i) {
+        // These are the index of the squares where the en passant can be applied for black pieces and white to capture
+        if (i >= 41 && i <= 48) {
+            result[PIECE_BLACK][i] = bitboard_from_squares(i - 1);
+        }
+    }
+    return result;
+}
+
+MagicBoards init_magic_boards() {
     // pawn attacks
     MagicBoards mb{};
+    mb.en_passant_conversion_table = generate_en_passant_conversion_table();
     for (int32_t color = 0; color < COLOR_COUNT; ++color) {
         int32_t pawn_dr = (color == 0 ? +1 : -1);
-        for (int32_t sq = 0; sq < SQUARE_COUNT; ++sq) { mb.pawn_attacks[color][sq] = make_attack_mask(sq, std::array{std::pair{pawn_dr, -1}, std::pair{pawn_dr, +1}}); }
+        for (int32_t sq = 0; sq < SQUARE_COUNT; ++sq) { mb.pawn_attacks[color][sq] = make_attack_mask(sq, gtr::array{std::pair{pawn_dr, -1}, std::pair{pawn_dr, +1}}); }
     }
 
     for (int32_t color = 0; color < COLOR_COUNT; ++color) {
@@ -255,10 +275,10 @@ MagicBoards detail::init_magic_boards() {
     }
     for (int32_t sq = 0; sq < SQUARE_COUNT; ++sq) {
         mb.knight_attacks[sq] = make_attack_mask(
-            sq, std::array{std::pair{+2, +1}, std::pair{+1, +2}, std::pair{-1, +2}, std::pair{-2, +1}, std::pair{-2, -1}, std::pair{-1, -2}, std::pair{+1, -2}, std::pair{+2, -1}});
+            sq, gtr::array{gtr::pair{+2, +1}, gtr::pair{+1, +2}, gtr::pair{-1, +2}, gtr::pair{-2, +1}, gtr::pair{-2, -1}, gtr::pair{-1, -2}, gtr::pair{+1, -2}, gtr::pair{+2, -1}});
 
         mb.king_attacks[sq] = make_attack_mask(
-            sq, std::array{std::pair{+1, 0}, std::pair{-1, 0}, std::pair{0, +1}, std::pair{0, -1}, std::pair{+1, +1}, std::pair{+1, -1}, std::pair{-1, +1}, std::pair{-1, -1}});
+            sq, gtr::array{gtr::pair{+1, 0}, gtr::pair{-1, 0}, gtr::pair{0, +1}, gtr::pair{0, -1}, gtr::pair{+1, +1}, gtr::pair{+1, -1}, gtr::pair{-1, +1}, gtr::pair{-1, -1}});
 
         const BitBoard from_bb = BitBoard{1} << sq;
 
@@ -288,7 +308,7 @@ MagicBoards detail::init_magic_boards() {
             }
         }
 
-        const BitBoard edges = ((Rank1 | Rank8) & ~bitboard_get_rank(static_cast<SquareIndex>(sq)) | (FileA | FileH) & ~bitboard_get_file(static_cast<SquareIndex>(sq)));
+        const BitBoard edges = (((Rank1 | Rank8) & ~bitboard_get_rank(static_cast<SquareIndex>(sq))) | ((FileA | FileH) & ~bitboard_get_file(static_cast<SquareIndex>(sq))));
         mb.rook_mask[sq] = sliding_attacks_rook(static_cast<SquareIndex>(sq), 0) & ~edges;
         mb.bishop_mask[sq] = sliding_attacks_bishop(static_cast<SquareIndex>(sq), 0) & ~edges;
     }
@@ -296,10 +316,11 @@ MagicBoards detail::init_magic_boards() {
     fill_sliders_magic(mb);
     return mb;
 }
+} // namespace detail
 gtr::large_string print_bitboard(const BitBoard board) {
     gtr::large_string board_str;
     for (int32_t row = 7; row >= 0; --row) {
-        board_str += gtr::format("%d. ", row + 1);
+        board_str.append(gtr::format("%d. ", row + 1));
         for (int32_t col = 0; col < 8; ++col) {
             if (bitboard_get(board, row, col)) {
                 board_str += "1 ";

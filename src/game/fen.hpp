@@ -1,6 +1,6 @@
 #ifndef FEN_HPP
 #define FEN_HPP
-#include <array>
+#include "array.hpp"
 #include <cstdint>
 #include <string.hpp>
 #include "piece.hpp"
@@ -8,7 +8,7 @@
 namespace game {
 struct Fen : gtr::char_string<128> {
     static constexpr auto FEN_START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    std::array<uint8_t, 5> fields_index{44, 46, 51, 53, 55}; ///< Size of each field in FEN string
+    gtr::array<uint8_t, 5> fields_index{44, 46, 51, 53, 55}; ///< Size of each field in FEN string
 
     Color turn() const { return at(fields_index[0]) == 'w' ? PIECE_WHITE : PIECE_BLACK; }
     std::byte castle_rights() const;
@@ -19,7 +19,7 @@ struct Fen : gtr::char_string<128> {
 
     void reset() { set_fen(FEN_START); }
     bool set_fen(const char *fen);
-    static Fen build(const std::array<Piece, SQUARE_COUNT>& pieces, Color t, std::byte rights, int8_t index, int32_t halfmove, int32_t fullmove);
+    static Fen build(const gtr::array<Piece, SQUARE_COUNT>& pieces, Color t, std::byte rights, int8_t index, int32_t halfmove, int32_t fullmove);
 };
 
 } // namespace game

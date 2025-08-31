@@ -7,6 +7,8 @@
 #include "piece.hpp"
 #include "types.hpp"
 #include "fen.hpp"
+#include "array.hpp"
+
 namespace game {
 
 struct BoardState {
@@ -19,13 +21,13 @@ struct BoardState {
 };
 
 struct Board {
-    std::array<Piece, SQUARE_COUNT> pieces{};
-    std::array<BitBoard, PIECE_COUNT_PLUS_ANY> pieces_by_type{};
-    std::array<BitBoard, COLOR_COUNT> pieces_by_color{};
+    gtr::array<Piece, SQUARE_COUNT> pieces{};
+    gtr::array<BitBoard, PIECE_COUNT_PLUS_ANY> pieces_by_type{};
+    gtr::array<BitBoard, COLOR_COUNT> pieces_by_color{};
     history<BoardState> state_history;
     BoardState *current_state{nullptr};
-    Color side_to_move{PIECE_WHITE};
     int32_t move_count{0};
+    Color side_to_move{PIECE_WHITE};
 
     Board() { init(); }
 
@@ -75,8 +77,6 @@ struct Board {
     Color get_color(const int32_t row, const int32_t col) const { return PIECE_COLOR(pieces[Board::get_index(row, col)]); }
 
     Color get_color(const int32_t index) const { return PIECE_COLOR(pieces[index]); }
-
-    bool is_en_passant(int32_t from_row, int32_t from_col, int32_t to_row, int32_t to_col) const;
 
     gtr::large_string board_to_string() const;
 

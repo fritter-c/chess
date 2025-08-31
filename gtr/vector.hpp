@@ -1,7 +1,6 @@
 ﻿#pragma once
 #ifndef VECTOR_HPP
 #define VECTOR_HPP
-#include <cstring>
 #include <memory>
 #include "allocator.hpp"
 #include "assert.hpp"
@@ -121,7 +120,7 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
         data_end = data + Size;
         capacity_end = data_end;
         if constexpr (std::is_trivially_constructible_v<T>) {
-            std::memset(data, 0, Size * sizeof(T));
+            std::fill_n(data, Size, value);
         } else {
             for (size_type i = 0; i < Size; ++i) { new (data + i) T(value); }
         }
@@ -365,7 +364,8 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
      *
      * @param new_size The new size of the container.
      */
-    void resize(size_type new_size) {
+    void resize(size_type new_size)
+    {
         if (new_size > size()) {
             if (new_size > capacity()) {
                 // Start with the current capacity (or 1 if capacity is zero)
@@ -439,6 +439,7 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
      * @return T* Pointer to the first element in the container.
      */
     T *begin() { return data; }
+
     /**
      * @brief Returns a pointer to the end of the container.
      *
@@ -448,6 +449,7 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
      *
      * @return T* Pointer to the element following the last element of the container.
      */
+
     T *end() { return data_end; }
     /**
      * @brief Returns a constant pointer to the beginning of the vector.
@@ -546,20 +548,20 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
         if constexpr (std::is_trivially_copyable_v<T>) {
             if (capacity() > size()) {
                 size_type sz = size();
-                data = reallocate(data, sz);
+                data = this->reallocate(data, sz, capacity());
                 data_end = data + sz;
                 capacity_end = data_end;
             }
         } else {
             if (size() < capacity()) {
-                T *new_data = allocate(size());
+                T *new_data = this->allocate(size());
                 T *new_data_end = new_data;
                 for (T *ptr = data; ptr != data_end; ++ptr, ++new_data_end) {
                     new (new_data_end) T(std::move(*ptr));
                     ptr->~T();
                 }
                 if (data) {
-                    deallocate(data, capacity());
+                    this->deallocate(data, capacity());
                 }
                 data = new_data;
                 data_end = new_data_end;
@@ -581,10 +583,20 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
      *       the function does nothing.
      */
     void erase_unordered(size_type index) {
-        if (index < size()) {
-            data[index].~T();
-            data[index] = std::move(*(--data_end));
+        if (index >= size())
+            return;
+        T *last = data_end - 1;
+        if (data + index != last) {
+            if constexpr (std::is_trivially_copyable_v<T>) {
+                data[index] = std::move(*last);
+            } else {
+                std::destroy_at(data + index);
+                ::new (static_cast<void *>(data + index)) T(std::move(*last)); // no launder needed
+            }
+        } else {
+            std::destroy_at(last);
         }
+        --data_end;
     }
 
     /**
@@ -639,7 +651,7 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
      * @param end_index The ending index of the range to erase (exclusive).
      */
     template <typename U = T>
-        requires(std::is_trivially_destructible_v<U>)
+        requires(std::is_trivially_copyable_v<U>)
     void erase(size_type start_index, size_type end_index) {
         if (start_index < size() && end_index <= size() && start_index < end_index) {
             memmove(data + start_index, data + end_index, (size() - end_index) * sizeof(T));
@@ -648,7 +660,7 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
     }
 
     template <typename U = T>
-        requires(!std::is_trivially_destructible_v<U>)
+        requires(!std::is_trivially_copyable_v<U>)
     void erase(size_type start_index, size_type end_index) {
         if (start_index < size() && end_index <= size() && start_index < end_index) {
             for (size_type i = start_index; i < end_index; ++i) { data[i].~T(); }
@@ -725,20 +737,23 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
      * @param value The value to be inserted.
      */
     void insert(size_type index, const T &value) {
-        if (index <= size()) {
-            if constexpr (std::is_trivially_copyable_v<T>) {
-                push_back(value);
-                std::memmove(data + index + 1, data + index, (size() - index - 1) * sizeof(T));
-                data[index] = value;
-            } else {
-                if (data_end == capacity_end) {
-                    reserve(capacity() ? capacity() * 2 : 1);
-                }
-                ++data_end;
-                for (size_type i = size() - 1; i > index; --i) { data[i] = std::move(data[i - 1]); }
-                new (&data[index]) T(value);
-            }
+        if (index > size())
+            return;
+        if (data_end == capacity_end)
+            reserve(capacity() ? capacity() * 2 : 1);
+
+        if (index == size()) {
+            ::new (static_cast<void *>(data_end)) T(value);
+            ++data_end;
+            return;
         }
+
+        ::new (static_cast<void *>(data_end)) T(std::move(*(data_end - 1))); // construct new tail
+        for (T *p = data_end - 1; p != data + index; --p) {                  // shift by move-assign
+            *p = std::move(*(p - 1));
+        }
+        data[index] = value;
+        ++data_end;
     }
 
     /**
@@ -766,22 +781,23 @@ template <class T, class Allocator = c_allocator<T>> struct vector : container_b
      * @param value The value to be inserted using move semantics.
      */
     void insert(size_type index, T &&value) {
-        if (index <= size()) {
-            if constexpr (std::is_trivially_copyable_v<T>) {
-                push_back(std::move(value));
-                std::memmove(data + index + 1, data + index, (size() - index - 1) * sizeof(T));
-                data[index] = std::move(value);
-            } else {
-                if (data_end == capacity_end) {
-                    reserve(capacity() ? capacity() * 2 : 1);
-                }
-                ++data_end;
-                for (size_type i = size() - 1; i > index; --i) { data[i] = std::move(data[i - 1]); }
-                new (&data[index]) T(std::move(value));
-            }
-        } else {
+        if (index > size()) {
             push_back(std::move(value));
+            return;
         }
+        if (data_end == capacity_end)
+            reserve(capacity() ? capacity() * 2 : 1);
+
+        if (index == size()) {
+            ::new (static_cast<void *>(data_end)) T(std::move(value));
+            ++data_end;
+            return;
+        }
+
+        ::new (static_cast<void *>(data_end)) T(std::move(*(data_end - 1)));
+        for (T *p = data_end - 1; p != data + index; --p) { *p = std::move(*(p - 1)); }
+        data[index] = std::move(value);
+        ++data_end;
     }
 
     /**

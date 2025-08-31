@@ -10,4 +10,14 @@ consteval OS get_os() {
     return OS::MACOS;
 #endif
 }
+
+#if defined(_MSC_VER) || defined(_WIN64) || defined(_WIN32)
+#define WINDOWS_BUILD
+#endif
+#if defined(__linux__)
+#define LINUX_BUILD
+#endif
+#if defined(__APPLE__)
+#define MACOS_BUILD
+#endif
 } // namespace gtr

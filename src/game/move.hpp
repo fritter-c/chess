@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "bitboard.hpp"
 #include "piece.hpp"
 #include "string.hpp"
 #include "types.hpp"
@@ -25,7 +26,7 @@ enum class DisambiguationType { NONE, FILE, RANK, FILE_RANK };
 // Them 2-bits for flags (en passant, castle, promotion)
 struct Move {
     using storage_type = uint16_t;
-    enum MoveSpecialType : uint8_t { MOVE_NONE = 0, MOVE_CASTLE, MOVE_PROMOTION, MOVE_EN_PASSANT };
+    enum MoveSpecialType : uint8_t { MOVE_NONE = 0, MOVE_CASTLE, MOVE_EN_PASSANT, MOVE_PROMOTION };
 
     storage_type move;
 
@@ -42,29 +43,29 @@ struct Move {
     static constexpr storage_type FLAGS_MASK = (1u << 2) - 1; // 0x0003
 
     void set_origin(const uint8_t sq) noexcept {
-        constexpr storage_type ORIGIN{static_cast<storage_type>(~(ORIGIN_MASK << ORIGIN_SHIFT))};
-        move = move & ORIGIN | static_cast<storage_type>(static_cast<storage_type>(sq) << ORIGIN_SHIFT);
+        static constexpr storage_type ORIGIN{static_cast<storage_type>(~(ORIGIN_MASK << ORIGIN_SHIFT))};
+        move = (move & ORIGIN) | static_cast<storage_type>(static_cast<storage_type>(sq) << ORIGIN_SHIFT);
     }
 
     uint8_t get_origin() const { return move >> ORIGIN_SHIFT & ORIGIN_MASK; }
 
     void set_destination(const uint8_t d) {
-        constexpr storage_type DEST{static_cast<storage_type>(~(DEST_MASK << DEST_SHIFT))};
-        move = move & DEST | static_cast<storage_type>((static_cast<storage_type>(d) & DEST_MASK) << DEST_SHIFT);
+        static constexpr storage_type DEST{static_cast<storage_type>(~(DEST_MASK << DEST_SHIFT))};
+        move = (move & DEST) | static_cast<storage_type>((static_cast<storage_type>(d) & DEST_MASK) << DEST_SHIFT);
     }
 
     uint8_t get_destination() const { return move >> DEST_SHIFT & DEST_MASK; }
 
     void set_promotion_piece(const PromotionPieceType p) {
-        constexpr storage_type PROMO{static_cast<storage_type>(~(PROMO_MASK << PROMO_SHIFT))};
-        move = move & PROMO | static_cast<storage_type>((std::to_underlying(p) & PROMO_MASK) << PROMO_SHIFT);
+        static constexpr storage_type PROMO{static_cast<storage_type>(~(PROMO_MASK << PROMO_SHIFT))};
+        move = (move & PROMO) | static_cast<storage_type>((std::to_underlying(p) & PROMO_MASK) << PROMO_SHIFT);
     }
 
     PromotionPieceType get_promotion_piece() const { return static_cast<PromotionPieceType>(move >> PROMO_SHIFT & PROMO_MASK); }
 
     void set_special(const MoveSpecialType s) {
-        constexpr storage_type FLAGS{static_cast<storage_type>(~(FLAGS_MASK << FLAGS_SHIFT))};
-        move = move & FLAGS | static_cast<storage_type>(std::to_underlying(s) << FLAGS_SHIFT);
+        static constexpr storage_type FLAGS{static_cast<storage_type>(~(FLAGS_MASK << FLAGS_SHIFT))};
+        move = (move & FLAGS) | static_cast<storage_type>(std::to_underlying(s) << FLAGS_SHIFT);
     }
 
     MoveSpecialType get_special() const { return static_cast<MoveSpecialType>(move >> FLAGS_SHIFT & FLAGS_MASK); }
@@ -123,12 +124,13 @@ enum class MoveParserConversionError {
     INVALID_PIECE_TYPE,
     TOO_LITTLE_INFORMATION,
     PAWN_MOVE_TO_PROMOTION_RANK_WITHOUT_PROMOTION,
+    INVALID_PROMOTION_PIECE,
     NO_PIECE_FOUND_FOR_ORIGIN,
     NO_PIECE_FOUND_AT_CAPTURE_DESTINATION,
     INVALID_NOTATION,
 };
 
-gtr::string conversion_error_to_string(MoveParserConversionError e) noexcept;
+const char *conversion_error_to_string(MoveParserConversionError e) noexcept;
 MoveParserConversionError algebraic_to_move(Color turn, const Board &board, const AlgebraicMove &move, Move &result);
 inline bool algebraic_is_castle(const AlgebraicMove &move) { return move[0] == 'O'; }
 inline bool algebraic_is_capture(const AlgebraicMove &move) { return move.find('x') != gtr::string::npos; }
@@ -147,7 +149,7 @@ inline PieceType algebraic_get_piece_type(const AlgebraicMove &move) {
 }
 
 inline SquareIndex algebraic_get_index(const AlgebraicMove &move, const int8_t index) {
-    if (index < 0 || index + 1 >= move.size()) {
+    if (index < 0 || index + 1 >= static_cast<int8_t>(move.size())) {
         return SQUARE_COUNT; // Invalid index
     }
     const char column = move[index];

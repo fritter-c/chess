@@ -1,12 +1,12 @@
 #include "visual_board.hpp"
+#include <iostream>
 #include "../game/analyzer.hpp"
 #include "../game/game.hpp"
 #include "../third/miniaudio.h"
 #include "imgui_extra.hpp"
 #include "imgui_internal.h"
-#include "primitives.hpp"
-#define MIN(A, B) ((A) < (B) ? (A) : (B))
-#define MAX(A, B) ((A) > (B) ? (A) : (B))
+#include "math.hpp"
+#include "recatangle.hpp"
 
 namespace renderer {
 struct BoardResources {
@@ -60,31 +60,31 @@ static void play_check_sound() {
     ma_sound_start(&BoardResources::g_ma_check_sound);
 }
 
-static ImVec2 apply_window_offset(const ImVec2 vec) { return vec + ImGui::GetWindowPos(); }
+static gtr::vec2 apply_window_offset(const gtr::vec2 vec) { return vec + gtr::vec2(ImGui::GetWindowPos()); }
 
 GLuint get_piece_texture(const game::Piece piece) {
     static constexpr std::array piece_to_img_pos{0, 0, 1, 2, 3, 4, 5, 0, 0, 6, 7, 8, 9, 10, 11}; // direct conversion from game::Piece
     return BoardResources::g_chess_pieces_textures[piece_to_img_pos[std::to_underlying(piece)]];
 }
 
-static Rectangle visual_board_get_rect_for_cell(const VisualBoard *board, const int32_t row, const int32_t col) {
-    Rectangle rect{};
+static gtr::rectangle visual_board_get_rect_for_cell(const VisualBoard *board, const int32_t row, const int32_t col) {
+    gtr::rectangle rect{};
     if (board->flipped) {
-        rect.topLeft.x = board->board_offset.x + (7 - static_cast<float>(col)) * board->cell_size;
-        rect.topLeft.y = board->board_offset.y + static_cast<float>(row) * board->cell_size;
+        rect.top_left.x = board->board_offset.x + (7 - static_cast<float>(col)) * board->cell_size;
+        rect.top_left.y = board->board_offset.y + static_cast<float>(row) * board->cell_size;
     } else {
-        rect.topLeft.x = board->board_offset.x + static_cast<float>(col) * board->cell_size;
-        rect.topLeft.y = board->board_offset.y + static_cast<float>(7 - row) * board->cell_size;
+        rect.top_left.x = board->board_offset.x + static_cast<float>(col) * board->cell_size;
+        rect.top_left.y = board->board_offset.y + static_cast<float>(7 - row) * board->cell_size;
     }
-    rect.topLeft = apply_window_offset(rect.topLeft);
-    rect.Size({board->cell_size, board->cell_size});
+    rect.top_left = apply_window_offset(rect.top_left);
+    rect.size({board->cell_size, board->cell_size});
     return rect;
 }
 
-static Rectangle visual_board_get_rect_for_mouse_pos(const VisualBoard *board, const ImVec2 mouse_pos) {
-    Rectangle rect{};
-    rect.topLeft = mouse_pos - ImVec2(board->cell_size / 2.0f, board->cell_size / 2.0f);
-    rect.Size({board->cell_size, board->cell_size});
+static gtr::rectangle visual_board_get_rect_for_mouse_pos(const VisualBoard *board, const ImVec2 mouse_pos) {
+    gtr::rectangle rect{};
+    rect.top_left = gtr::vec2(mouse_pos - ImVec2(board->cell_size / 2.0f, board->cell_size / 2.0f));
+    rect.size({board->cell_size, board->cell_size});
     return rect;
 }
 
@@ -93,8 +93,8 @@ static void render_available_squares(const VisualBoard *board) {
         if (board->available_squares_for_dragging.get(i)) {
             const int32_t row = game::Board::get_row(i);
             const int32_t col = game::Board::get_col(i);
-            Rectangle cell_rect = visual_board_get_rect_for_cell(board, row, col);
-            ImGui::GetWindowDrawList()->AddCircleFilled(cell_rect.Center(), cell_rect.Size().x / 5.0f, IM_COL32(0, 255, 0, 128), 128);
+            gtr::rectangle cell_rect = visual_board_get_rect_for_cell(board, row, col);
+            ImGui::GetWindowDrawList()->AddCircleFilled(cell_rect.center(), cell_rect.size().x / 5.0f, IM_COL32(0, 255, 0, 128), 128);
         }
     }
 }
@@ -108,13 +108,13 @@ static void render_chess_pieces(const game::Game *game, const VisualBoard *board
         const int32_t row = game::Board::get_row(index);
         const int32_t col = game::Board::get_col(index);
         if (const game::Piece piece = game->board.pieces[index]; piece != game::PIECE_NONE) {
-            const Rectangle piece_rect = visual_board_get_rect_for_cell(board, row, col);
+            const gtr::rectangle piece_rect = visual_board_get_rect_for_cell(board, row, col);
 
             const GLuint texture_id = get_piece_texture(piece);
-            ImGui::GetWindowDrawList()->AddImage(texture_id, piece_rect.topLeft, piece_rect.bottomRight);
+            ImGui::GetWindowDrawList()->AddImage(texture_id, piece_rect.top_left, piece_rect.bottom_right);
             if (index == board->dragging_piece_index) {
                 // Render a highlight around the piece being dragged
-                ImGui::GetWindowDrawList()->AddRectFilled(piece_rect.topLeft, piece_rect.bottomRight, IM_COL32(255, 255, 0, 128), // semi-transparent yellow
+                ImGui::GetWindowDrawList()->AddRectFilled(piece_rect.top_left, piece_rect.bottom_right, IM_COL32(255, 255, 0, 128), // semi-transparent yellow
                                                           0.0f, ImDrawFlags_RoundCornersAll);
             }
         }
@@ -126,7 +126,7 @@ static void resize(VisualBoard *board, const float width, const float height) {
         const float board_size = MIN(width, height);
         board->board_size = board_size;
         board->cell_size = board_size / 8.0f;
-        board->board_offset = ImVec2((width - board_size) / 2.0f, (height - board_size) / 2.0f);
+        board->board_offset = gtr::vec2((width - board_size) / 2.0f, (height - board_size) / 2.0f);
     }
 }
 
@@ -209,7 +209,7 @@ static void render_chess_board(game::Game *game, VisualBoard *board) {
             ImRect cell_rect(cell_pos, ImVec2(cell_pos.x + board->cell_size, cell_pos.y + board->cell_size));
             ImGui::ItemAdd(cell_rect, ImGui::GetActiveID());
 
-            if (ImGui::IsItemHovered()) {
+            if (ImGui::IsItemHovered() && !game::bitboard_get(board->selected_squares_bitboard, index)) {
                 draw_list->AddRect(cell_rect.Min, cell_rect.Max, IM_COL32(0, 255, 0, 255), 0.0f, ImDrawFlags_RoundCornersAll, 2.0f);
                 board->row_hovered = flipped_rank;
                 board->col_hovered = flipped_file;
@@ -228,6 +228,10 @@ static void render_chess_board(game::Game *game, VisualBoard *board) {
                 ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
             } else if (ImGui::IsItemClicked(ImGuiMouseButton_Middle)) {
                 board->destination_arrow_square = index;
+            } else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                game::bitboard_set(board->selected_squares_bitboard, index);
+            } else if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                board->selected_squares_bitboard = 0;
             }
 
             ImGui::PopID();
@@ -241,13 +245,27 @@ static void render_dragging_piece(const game::Game *game, const VisualBoard *boa
         return;
     }
     ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-    const Rectangle piece_rect = visual_board_get_rect_for_mouse_pos(board, ImGui::GetMousePos());
+    const gtr::rectangle piece_rect = visual_board_get_rect_for_mouse_pos(board, ImGui::GetMousePos());
     const game::Piece piece = game->board.pieces[board->dragging_piece_index];
     const GLuint texture_id = get_piece_texture(piece);
-    ImGui::GetWindowDrawList()->AddImage(texture_id, piece_rect.topLeft, piece_rect.bottomRight);
+    ImGui::GetWindowDrawList()->AddImage(texture_id, piece_rect.top_left, piece_rect.bottom_right);
 }
 
-static void render_arrows(const VisualBoard *board) {
+static void render_selected_squares(const VisualBoard *board) {
+    const ImVec2 global_offset = apply_window_offset(board->board_offset);
+    for (const auto it : game::BitBoardIterator(board->selected_squares_bitboard)) {
+        auto file = game::Board::get_col(it);
+        auto rank = game::Board::get_row(it);
+        const int32_t display_row = 7 - rank;
+        const int32_t flipped_rank = board->flipped ? rank : display_row;
+        const int32_t flipped_file = board->flipped ? 7 - file : file;
+        ImVec2 cell_pos(global_offset.x + static_cast<float>(flipped_file) * board->cell_size, global_offset.y + static_cast<float>(flipped_rank) * board->cell_size);
+        const auto draw_list = ImGui::GetWindowDrawList();
+        draw_list->AddRectFilled(cell_pos, ImVec2(cell_pos.x + board->cell_size, cell_pos.y + board->cell_size), IM_COL32(255, 0, 0, 200));
+    }
+}
+
+[[maybe_unused]] static void render_arrows(const VisualBoard *board) {
     if (board->origin_arrow_square < 0 || board->destination_arrow_square < 0) {
         return;
     }
@@ -256,15 +274,16 @@ static void render_arrows(const VisualBoard *board) {
     const int32_t to_row = game::Board::get_row(board->destination_arrow_square);
     const int32_t to_col = game::Board::get_col(board->destination_arrow_square);
 
-    const Rectangle from_rect = visual_board_get_rect_for_cell(board, from_row, from_col);
-    const Rectangle to_rect = visual_board_get_rect_for_cell(board, to_row, to_col);
+    const gtr::rectangle from_rect = visual_board_get_rect_for_cell(board, from_row, from_col);
+    const gtr::rectangle to_rect = visual_board_get_rect_for_cell(board, to_row, to_col);
 
-    ImGui::GetWindowDrawList()->AddLine(from_rect.Center(), to_rect.Center(), IM_COL32(255, 0, 0, 255), 2.0f);
+    ImGui::GetWindowDrawList()->AddLine(from_rect.center(), to_rect.center(), IM_COL32(255, 0, 0, 255), 2.0f);
 }
 
 void VisualBoard::render(game::Game *game, const float width, const float height) {
     resize(this, width, height);
     render_chess_board(game, this);
+    render_selected_squares(this);
     render_chess_pieces(game, this);
     render_dragging_piece(game, this);
 }

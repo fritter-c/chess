@@ -15,9 +15,9 @@ static void game_update_status(Game *g) {
         g->status = BLACK_CHECKMATE;
     } else if (analyzer_is_color_in_checkmate(&g->board, PIECE_WHITE)) {
         g->status = WHITE_CHECKMATE;
-    } else if (analyzer_get_is_stalemate(&g->board, PIECE_WHITE)) {
+    } else if (g->board.side_to_move == PIECE_WHITE && analyzer_get_is_stalemate(&g->board, PIECE_WHITE)) {
         g->status = WHITE_STALEMATE;
-    } else if (analyzer_get_is_stalemate(&g->board, PIECE_BLACK)) {
+    } else if (g->board.side_to_move == PIECE_BLACK && analyzer_get_is_stalemate(&g->board, PIECE_BLACK)) {
         g->status = BLACK_STALEMATE;
     } else if (analyzer_is_insufficient_material(&g->board)) {
         g->status = INSUFFICIENT_MATERIAL;
@@ -39,7 +39,7 @@ bool Game::move(const Move &move) {
     if (!game_is_playable(this)) {
         return false;
     }
-    AvailableMoves moves = analyzer_get_legal_moves_for_piece(&board, move.from_row(), move.from_col());
+    const AvailableMoves moves = analyzer_get_legal_moves_for_piece(&board, move.from_row(), move.from_col());
     if (board.get_color(move.from_row(), move.from_col()) == board.side_to_move && moves.get(move.to_row(), move.to_col())) {
         AlgebraicMove algebraic_move;
         board.move(move, algebraic_move);

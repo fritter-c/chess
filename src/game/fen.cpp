@@ -24,9 +24,9 @@ bool Fen::set_fen(const char *fen) {
     }
 
     int32_t index = 0;
-    for (auto i = 0; i < fen_str.size(); i++) {
+    for (auto i = 0ULL; i < fen_str.size(); i++) {
         if (fen_str[i] == ' ') {
-            if (fen_str.size() == i + 1) {
+            if (fen_str.size() == i + 1ULL) {
                 return false;
             }
             fields_index[index] = static_cast<uint8_t>(i + 1);
@@ -104,12 +104,12 @@ bool Fen::set_fen(const char *fen) {
     }
 
     gtr::string halfmove_clock = fen_str.substr(fields_index[3], (fields_index[4] - 1)).c_str();
-    if (halfmove_clock.to_int() == LONG_MAX) {
+    if (halfmove_clock.to_int() == static_cast<int32_t>(LONG_MAX)) {
         return false;
     }
 
     gtr::string fullmove_number = fen_str.substr(fields_index[4]).c_str();
-    if (fullmove_number.to_int() == LONG_MAX) {
+    if (fullmove_number.to_int() == static_cast<int32_t>(LONG_MAX)) {
         return false;
     }
 
@@ -190,7 +190,7 @@ Piece Fen::piece_at(const SquareIndex s) const {
     return PIECE_NONE; // No piece found
 }
 
-Fen Fen::build(const std::array<Piece, SQUARE_COUNT> &pieces, const Color t, const std::byte rights, const int8_t index, const int32_t halfmove, const int32_t fullmove) {
+Fen Fen::build(const gtr::array<Piece, SQUARE_COUNT> &pieces, const Color t, const std::byte rights, const int8_t index, const int32_t halfmove, const int32_t fullmove) {
     gtr::char_string<128> position;
     std::array<gtr::string, RANK_COUNT> ranks{};
     int32_t empty_acum{0};
@@ -270,8 +270,7 @@ Fen Fen::build(const std::array<Piece, SQUARE_COUNT> &pieces, const Color t, con
     position.append(gtr::format(" %d %d", halfmove, fullmove));
 
     Fen fen;
-    const bool set_fen = fen.set_fen(position.c_str());
-    Assert(set_fen, "Fen::build: Failed to set FEN string");
+    AssertExecute(fen.set_fen(position.c_str()), "Fen::build: Failed to set FEN string");
     return fen;
 }
 

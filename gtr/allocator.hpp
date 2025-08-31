@@ -6,6 +6,7 @@
 #include <type_traits>
 namespace gtr {
 template <typename T> struct c_allocator {
+    static_assert(alignof(T) <= alignof(max_align_t), "c_allocator can only be used for types with alignment <= max_align_t");
     using value_type = T;
     using pointer_type = T *;
     using size_type = uint64_t;
@@ -26,8 +27,8 @@ template <typename T> struct c_allocator {
 
     constexpr c_allocator() noexcept = default;
     constexpr ~c_allocator() = default;
-    template <typename U> explicit constexpr c_allocator(const c_allocator<U> &) noexcept {}; // Required to be used as a CPP allocator
-    template <typename U> explicit constexpr c_allocator(c_allocator<U> &&) noexcept {}; // Required to be used as a CPP allocator
+    template <typename U> explicit constexpr c_allocator(const c_allocator<U> &) noexcept {} // Required to be used as a CPP allocator
+    template <typename U> explicit constexpr c_allocator(c_allocator<U> &&) noexcept {} // Required to be used as a CPP allocator
     template <class U> bool operator==(const c_allocator<U> &) const noexcept { return true; }
     template <class U> bool operator!=(const c_allocator<U> &) const noexcept { return false; }
     template <class U>  struct rebind { using other = c_allocator<U>; };
@@ -68,5 +69,64 @@ template <typename T, uint64_t Alignment = alignof(max_align_t) > struct aligned
     template <class U> bool operator!=(const aligned_allocator<U,Alignment> &) const noexcept { return false; }
     template <typename U> struct rebind { using other = aligned_allocator<U, Alignment>;};
 };
+
+
+
+template <class T,
+          bool POCCA = false,
+          bool POCMA = false,
+          bool POCSW = false,
+          bool SOCCC_SAME = true>
+struct stateful_allocator {
+    struct allocator_state {
+        uint64_t id = 0;            // user-visible tag (device id / pool id / whatever)
+        uint64_t allocs = 0;        // optional counters for testing/inspection
+        uint64_t frees  = 0;
+    };
+    using value_type  = T;
+    using pointer_type = T*;
+    using size_type   = uint64_t;
+    using difference_type = std::ptrdiff_t;
+    using propagate_on_container_copy_assignment = std::bool_constant<POCCA>;
+    using propagate_on_container_move_assignment = std::bool_constant<POCMA>;
+    using propagate_on_container_swap            = std::bool_constant<POCSW>;
+
+    using is_always_equal = std::false_type;
+
+    std::shared_ptr<allocator_state> st;
+
+    constexpr stateful_allocator() noexcept : st(std::make_shared<allocator_state>()) {}
+    explicit constexpr stateful_allocator(uint64_t tag) noexcept : st(std::make_shared<allocator_state>()) { st->id = tag; }
+
+    // Rebind / converting ctors
+    template <class U, bool A, bool B, bool C, bool D>
+    explicit constexpr stateful_allocator(const stateful_allocator<U, A, B, C, D>& other) noexcept : st(other.st) {}
+
+    template <class U, bool A, bool B, bool C, bool D>
+    explicit constexpr stateful_allocator(stateful_allocator<U, A, B, C, D>&& other) noexcept : st(std::move(other.st)) {}
+
+    // select_on_container_copy_construction: keep or drop state
+    constexpr stateful_allocator select_on_container_copy_construction() const noexcept {
+        if constexpr (SOCCC_SAME) return *this;          // keep same state (common)
+        else return stateful_allocator{};                // fresh default state
+    }
+
+    // Allocation API matching your style
+    T* allocate(size_type n) const { return malloc(n); }
+    T* reallocate(T* ptr, size_type size, size_type old_size) const { return realloc(ptr, size, old_size); }
+    void deallocate(T* p, size_type n) const { return free(p, n); }
+
+    T* malloc(size_type n) const {if (st) ++st->allocs;return static_cast<T*>(std::malloc(n * sizeof(T)));}
+    T* realloc(T* ptr, size_type n, size_type /*old_n*/) const {return static_cast<T*>(std::realloc(ptr, n * sizeof(T)));}
+    void free(T* ptr, size_type /*n*/) const {if (st) ++st->frees;std::free(ptr);}
+
+    template <class U, bool A, bool B, bool C, bool D>
+    bool operator==(const stateful_allocator<U, A, B, C, D>& other) const noexcept {return st.get() == other.st.get();}
+    template <class U, bool A, bool B, bool C, bool D>
+    bool operator!=(const stateful_allocator<U, A, B, C, D>& other) const noexcept { return !(*this == other); }
+
+    template <class U> struct rebind { using other = stateful_allocator<U, POCCA, POCMA, POCSW, SOCCC_SAME>; };
+};
+
 } // namespace gtr
 #endif

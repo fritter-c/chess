@@ -1,2 +1,6 @@
+add_subdirectory(gtest)
+enable_testing()
+add_subdirectory(tests)
 file(GLOB GTR_SOURCES "*.cpp" "*.h" "*.hpp")
 add_library(gtr INTERFACE ${GTR_SOURCES})
+set(GTR_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}" PARENT_SCOPE)

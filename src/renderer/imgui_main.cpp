@@ -8,7 +8,7 @@
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 
-constexpr auto VSYNC_HINT{1}; // 1 for vsync, 0 for no vsync
+constexpr auto VSYNC_HINT{0}; // 1 for vsync, 0 for no vsync
 namespace renderer {
 void toggle_fullscreen(GLFWwindow *window, const bool enable_fullscreen) {
     static int32_t windowed_xpos = 0;

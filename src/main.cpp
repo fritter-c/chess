@@ -1,2 +1,6 @@
-namespace renderer {int render();}
-int main() { return renderer::render(); }
+namespace renderer {
+int render();
+}
+int main() {
+    return renderer::render();
+}

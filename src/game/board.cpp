@@ -2,6 +2,7 @@
 #include <cmath>
 #include "analyzer.hpp"
 #include "math.hpp"
+#include "profiler.hpp"
 #include "types.hpp"
 
 namespace game {
@@ -37,7 +38,7 @@ void Board::init() {
     move_count = 0;
 }
 
-static bool board_can_move_basic(const Board *board, const uint8_t from_index, const uint8_t to_index) {
+[[maybe_unused]] static bool board_can_move_basic(const Board *board, const uint8_t from_index, const uint8_t to_index) {
     if (from_index == to_index) {
         return false;
     }
@@ -54,10 +55,6 @@ static bool board_can_move_basic(const Board *board, const uint8_t from_index, c
     return true;
 }
 
-bool Board::is_en_passant(const int32_t from_row, const int32_t from_col, const int32_t to_row, const int32_t to_col) const {
-    return PIECE_TYPE(pieces[get_index(from_row, from_col)]) == PAWN && PIECE_TYPE(pieces[get_index(to_row, to_col)]) == EMPTY && to_col != from_col;
-}
-
 static bool on_corner(const int32_t row, const int32_t col) {
     static constexpr BitBoard corner_bitboard = bitboard_from_squares<A1, H1, A8, H8>();
     return bitboard_get(corner_bitboard, row, col);
@@ -65,38 +62,50 @@ static bool on_corner(const int32_t row, const int32_t col) {
 
 static void board_undo_castle(Board *board, const Move move) {
     const auto queen_side = static_cast<int>(move.from_col() - move.to_col() > 0);
-    static constexpr std::array rook_orig_col = {7, 0};
-    static constexpr std::array rook_castled_col = {5, 3};
+    static constexpr gtr::array rook_orig_col = {7, 0};
+    static constexpr gtr::array rook_castled_col = {5, 3};
     board->move_piece(move.get_destination_index(), move.get_origin_index());
     board->move_piece(move.from_row(), rook_castled_col[queen_side], move.from_row(), rook_orig_col[queen_side]);
 }
 
 static void update_rights(BoardState &state, Piece piece, const int32_t piece_row, const int32_t piece_col) {
-    static constexpr std::array all_rights{~CASTLE_WHITE_ALL, ~CASTLE_BLACK_ALL};
-    static constexpr std::array all_rights_bit{bitboard_from_squares<G8, C8>(), bitboard_from_squares<G1, C1>()};
-    static constexpr std::array side_rights{std::array{~CASTLE_WHITE_KINGSIDE, ~CASTLE_BLACK_KINGSIDE}, std::array{~CASTLE_WHITE_QUEENSIDE, ~CASTLE_BLACK_QUEENSIDE}};
-    static constexpr std::array side_rights_bit{
-        // And & with this to remove the rights
-        std::array{bitboard_from_squares<G8, C1, C8>(), bitboard_from_squares<G1, G8, C8>()}, // White
-        std::array{bitboard_from_squares<G1, C1, C8>(), bitboard_from_squares<G1, G8, C1>()}  // Black
-    };
+    static constexpr gtr::array rights_king_on_corner_0{gtr::array{~CASTLE_WHITE_ALL, ~CASTLE_BLACK_ALL}, gtr::array{CASTLE_RIGHTS_ALL, CASTLE_RIGHTS_ALL}};
+    static constexpr gtr::array rights_king_on_corner_7{gtr::array{~CASTLE_WHITE_ALL, ~CASTLE_BLACK_ALL}, gtr::array{CASTLE_RIGHTS_ALL, CASTLE_RIGHTS_ALL}};
+    static constexpr gtr::array rights_king = {rights_king_on_corner_0, rights_king_on_corner_7};
 
-    switch (PIECE_TYPE(piece)) {
-    case KING:
-        state.castle_rights &= all_rights[PIECE_COLOR(piece)];
-        state.castle_rights_bit &= all_rights_bit[PIECE_COLOR(piece)];
-        break;
-    case ROOK:
-        if (on_corner(piece_row, piece_col)) {
-            state.castle_rights &= side_rights[piece_col == 0][PIECE_COLOR(piece)];
-            state.castle_rights_bit &= side_rights_bit[piece_col == 0][PIECE_COLOR(piece)];
-        }
-        break;
-    default: break;
-    }
+    static constexpr gtr::array rights_rook_on_corner_0{gtr::array{~CASTLE_WHITE_KINGSIDE, ~CASTLE_BLACK_KINGSIDE}, gtr::array{CASTLE_RIGHTS_ALL, CASTLE_RIGHTS_ALL}};
+    static constexpr gtr::array rights_rook_on_corner_7{gtr::array{~CASTLE_WHITE_QUEENSIDE, ~CASTLE_BLACK_QUEENSIDE}, gtr::array{CASTLE_RIGHTS_ALL, CASTLE_RIGHTS_ALL}};
+    static constexpr gtr::array rights_rook = {rights_rook_on_corner_0, rights_rook_on_corner_7};
+
+    static constexpr gtr::array rights_non_relevant_on_corner_0{gtr::array{CASTLE_RIGHTS_ALL, CASTLE_RIGHTS_ALL}, gtr::array{CASTLE_RIGHTS_ALL, CASTLE_RIGHTS_ALL}};
+    static constexpr gtr::array rights_non_relevant_on_corner_7{gtr::array{CASTLE_RIGHTS_ALL, CASTLE_RIGHTS_ALL}, gtr::array{CASTLE_RIGHTS_ALL, CASTLE_RIGHTS_ALL}};
+    static constexpr gtr::array rights_non_relevant = {rights_non_relevant_on_corner_0, rights_non_relevant_on_corner_7};
+
+    static constexpr gtr::array rights_king_bit_on_corner_0{gtr::array{bitboard_from_squares<G8, C8>(), bitboard_from_squares<G1, C1>()}, gtr::array{BITBOARD_FULL, BITBOARD_FULL}};
+    static constexpr gtr::array rights_king_bit_on_corner_7{gtr::array{bitboard_from_squares<G8, C8>(), bitboard_from_squares<G1, C1>()}, gtr::array{BITBOARD_FULL, BITBOARD_FULL}};
+    static constexpr gtr::array rights_king_bit = {rights_king_bit_on_corner_0, rights_king_bit_on_corner_7};
+
+    static constexpr gtr::array rights_rook_bit_on_corner_0{gtr::array{bitboard_from_squares<G8, C1, C8>(), bitboard_from_squares<G1, C1, C8>()},
+                                                            gtr::array{BITBOARD_FULL, BITBOARD_FULL}};
+    static constexpr gtr::array rights_rook_bit_on_corner_7{gtr::array{bitboard_from_squares<G1, G8, C8>(), bitboard_from_squares<G1, G8, C1>()},
+                                                            gtr::array{BITBOARD_FULL, BITBOARD_FULL}};
+    static constexpr gtr::array rights_rook_bit = {rights_rook_bit_on_corner_0, rights_rook_bit_on_corner_7};
+
+    static constexpr gtr::array rights_non_relevant_bit_on_corner_0{gtr::array{BITBOARD_FULL, BITBOARD_FULL}, gtr::array{BITBOARD_FULL, BITBOARD_FULL}};
+    static constexpr gtr::array rights_non_relevant_bit_on_corner_7{gtr::array{BITBOARD_FULL, BITBOARD_FULL}, gtr::array{BITBOARD_FULL, BITBOARD_FULL}};
+    static constexpr gtr::array rights_non_relevant_bit = {rights_non_relevant_bit_on_corner_0, rights_non_relevant_bit_on_corner_7};
+
+    static constexpr gtr::array rights{rights_non_relevant, rights_non_relevant, rights_non_relevant, rights_non_relevant, rights_rook, rights_non_relevant, rights_king};
+
+    static constexpr gtr::array rights_bit{rights_non_relevant_bit, rights_non_relevant_bit, rights_non_relevant_bit, rights_non_relevant_bit,
+                                           rights_rook_bit,         rights_non_relevant_bit, rights_king_bit};
+
+    state.castle_rights &= rights[PIECE_TYPE(piece)][piece_col == 0][on_corner(piece_row, piece_col)][PIECE_COLOR(piece)];
+    state.castle_rights_bit &= rights_bit[PIECE_TYPE(piece)][piece_col == 0][on_corner(piece_row, piece_col)][PIECE_COLOR(piece)];
 }
 
 static void apply_move(Board &board, const Move move, BoardState &state) {
+    TimeFunction;
     const Piece from_piece = board.pieces[move.get_origin()];
     state.en_passant_index = EN_PASSANT_INVALID_INDEX; // Reset en passant index
     state.moved_piece = from_piece;
@@ -104,7 +113,7 @@ static void apply_move(Board &board, const Move move, BoardState &state) {
     if (PIECE_TYPE(from_piece) == PAWN && gtr::abs(move.from_row() - move.to_row()) == 2) {
         state.en_passant_index = static_cast<int8_t>(static_cast<int8_t>(move.get_destination()) + (IS_WHITE(from_piece) ? WHITE_DIRECTION : BLACK_DIRECTION));
     }
-    update_rights(state, from_piece, move.from_row(), move.from_col());
+    for (int i = 0; i < 80000; ++i) update_rights(state, from_piece, move.from_row(), move.from_col());
     switch (move.get_special()) {
     case Move::MOVE_EN_PASSANT: {
         const int32_t captured_row = PIECE_COLOR(from_piece) == PIECE_WHITE ? move.to_row() - 1 : move.to_row() + 1;
@@ -117,8 +126,8 @@ static void apply_move(Board &board, const Move move, BoardState &state) {
     }
     case Move::MOVE_CASTLE: {
         const auto queen_side = static_cast<int>(move.from_col() - move.to_col() > 0);
-        static constexpr std::array rook_orig_col = {7, 0};
-        static constexpr std::array rook_castled_col = {5, 3};
+        static constexpr gtr::array rook_orig_col = {7, 0};
+        static constexpr gtr::array rook_castled_col = {5, 3};
         board.move_piece(move.from_row(), rook_orig_col[queen_side], move.from_row(), rook_castled_col[queen_side]);
         board.move_piece(move.get_origin_index(), move.get_destination_index());
     } break;
@@ -126,8 +135,8 @@ static void apply_move(Board &board, const Move move, BoardState &state) {
         if (PIECE_TYPE(state.captured_piece) != EMPTY) {
             board.remove_piece(move.get_destination_index());
         }
-        board.remove_piece(move.get_origin_index());
         board.put_piece(chess_piece_make(move.get_promotion_piece_type(), PIECE_COLOR(board.pieces[move.get_origin()])), move.get_destination_index());
+        board.remove_piece(move.get_origin_index());
         break;
     case Move::MOVE_NONE:
     default:
